@@ -1,0 +1,6 @@
+# Prevent chaos scripts/tools from being included in Docker images
+chaos/
+
+# Prevent accidental test artifacts from being shipped
+*.test.js
+

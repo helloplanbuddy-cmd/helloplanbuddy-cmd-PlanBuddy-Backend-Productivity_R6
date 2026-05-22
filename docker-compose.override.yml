@@ -1,0 +1,12 @@
+services:
+  api:
+    build: ./planbuddy_v9
+    ports:
+      - "3000:3000"
+    networks:
+      - planbuddy_net
+
+networks:
+  planbuddy_net:
+    external: true
+

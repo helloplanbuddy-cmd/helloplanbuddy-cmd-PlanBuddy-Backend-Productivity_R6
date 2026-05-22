@@ -1,0 +1,30 @@
+v# Dependencies
+node_modules/
+
+# Environment files — NEVER commit any .env file
+.env
+.env.*
+!.env.example
+env
+env.production
+env.*
+
+# Logs
+logs/
+*.log
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Build
+dist/
+
+# macOS
+.DS_Store
+
+# PM2
+.pm2/
+.kombai/
+ 
+ 
