@@ -21,6 +21,26 @@
     },
     "test": {
       "dependsOn": ["^build"]
+    },
+    "@nx/esbuild:esbuild": {
+      "cache": true,
+      "dependsOn": ["^build"],
+      "inputs": [
+        "default",
+        "^default",
+        {
+          "json": "{workspaceRoot}/tsconfig.json",
+          "fields": ["extends", "files", "include"]
+        }
+      ]
     }
-  }
+  },
+  "plugins": [
+    {
+      "plugin": "@nx/eslint/plugin",
+      "options": {
+        "targetName": "lint"
+      }
+    }
+  ]
 }
