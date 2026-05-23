@@ -1,0 +1,166 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                    🚀 PLANBUDDY BACKEND - QUICK START                      ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ STEP 1: RUN SETUP SCRIPT (1 minute)                                        │
+└────────────────────────────────────────────────────────────────────────────┘
+
+Choose your operating system:
+
+📱 WINDOWS (Command Prompt):
+  > FINAL_SETUP_WINDOWS.bat
+
+📱 WINDOWS (PowerShell):
+  PS> .\setup-backend.ps1
+
+🐧 LINUX / 🍎 MAC:
+  $ bash setup-backend.sh
+
+💻 ANY OS with Node.js:
+  $ node setup.js
+
+✍️  MANUAL (No scripts):
+  → Follow: MANUAL_SETUP.md
+
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ STEP 2: START EXTERNAL SERVICES (30 seconds)                              │
+└────────────────────────────────────────────────────────────────────────────┘
+
+From planbuddy_v9 directory:
+
+  $ cd planbuddy_v9
+  $ docker-compose up -d postgres redis
+
+Or start PostgreSQL and Redis locally on:
+  • PostgreSQL: localhost:5432
+  • Redis: localhost:6379
+
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ STEP 3: START THE BACKEND (1 minute)                                      │
+└────────────────────────────────────────────────────────────────────────────┘
+
+Still in planbuddy_v9 directory:
+
+  $ npm start
+
+Expected output:
+  [startup] Node.js starting
+  [startup] Verifying database connectivity...
+  [startup] Database: OK
+  [startup] Verifying Redis connectivity...
+  [startup] Redis: OK
+  [startup] HTTP server listening (port: 3000)
+  [startup] Application fully initialized
+
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ STEP 4: VERIFY IT'S RUNNING (30 seconds)                                  │
+└────────────────────────────────────────────────────────────────────────────┘
+
+In a new terminal:
+
+  $ curl http://localhost:3000/health
+
+Expected response:
+  HTTP/1.1 200 OK
+  {
+    "status": "ok",
+    "timestamp": "2026-05-23T..."
+  }
+
+Or in browser:
+  http://localhost:3000/
+
+╔════════════════════════════════════════════════════════════════════════════╗
+║ 🎉 DONE! Backend is running on port 3000                                  ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+📚 For complete setup guide: BACKEND_READY.md
+🔧 For detailed status: FINAL_STATUS.md
+❓ For troubleshooting: MANUAL_SETUP.md
+
+================================================================================
+
+⚠️  TROUBLESHOOTING
+
+Problem: "Cannot find module ./services/productionHealth"
+  → Run setup script from STEP 1
+
+Problem: "ECONNREFUSED 127.0.0.1:5432" (PostgreSQL)
+  → Run: docker-compose up -d postgres
+
+Problem: "ECONNREFUSED 127.0.0.1:6379" (Redis)
+  → Run: docker-compose up -d redis
+
+Problem: "Port 3000 already in use"
+  → Change PORT in planbuddy_v9/.env
+  → Or kill other process using port 3000
+
+Problem: npm install errors
+  → Ensure Node.js 22.14+ and npm 10.9.2+
+  → Run from planbuddy_v9/ directory
+
+For more help: See MANUAL_SETUP.md section "Troubleshooting"
+
+================================================================================
+
+⏱️  TIMING
+
+Setup script:          ~1 minute
+Start PostgreSQL/Redis: ~30 seconds  
+Start backend:          ~5-10 seconds
+Verify health:          ~30 seconds
+────────────────────────────────────
+TOTAL TIME:             ~2-3 MINUTES ✓
+
+================================================================================
+
+🔐 SECURITY NOTES FOR PRODUCTION
+
+Before deploying to production, update in planbuddy_v9/.env:
+
+  ✓ RAZORPAY_KEY_ID=rzp_live_... (use LIVE keys, not test)
+  ✓ RAZORPAY_KEY_SECRET=(your live secret)
+  ✓ JWT_SECRET=(64-char random string, NOT this dev secret)
+  ✓ CORS_ORIGINS=(your production domains)
+  ✓ KNOWN_PROXY_IPS=(your load balancer IPs)
+  ✓ NODE_ENV=production
+  ✓ LOG_LEVEL=info
+
+Use AWS Secrets Manager, HashiCorp Vault, or similar for credentials.
+
+================================================================================
+
+📋 QUICK COMMAND REFERENCE
+
+# Development
+npm start                # Production mode (port 3000)
+npm run dev             # Development mode with auto-reload
+
+# Testing
+npm test                # Run all tests
+npm test -- --verbose  # Verbose test output
+
+# Utilities
+curl http://localhost:3000/health         # Health check
+curl http://localhost:3000/health/live    # Quick readiness
+curl http://localhost:3000/health/ready   # Deep readiness
+curl http://localhost:3000/metrics        # Prometheus metrics
+
+# Services
+docker-compose up -d postgres redis       # Start services
+docker-compose down                        # Stop services
+docker-compose logs -f postgres           # View PostgreSQL logs
+docker-compose logs -f redis              # View Redis logs
+
+================================================================================
+
+✅ STATUS: READY TO START
+
+Everything is configured. Run the setup script and you'll have a working
+backend in less than 3 minutes! 🚀
+
+================================================================================
