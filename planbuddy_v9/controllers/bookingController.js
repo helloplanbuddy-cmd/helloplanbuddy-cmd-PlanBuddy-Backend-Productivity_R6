@@ -7,7 +7,6 @@
  * This module must contain controller logic only.
  */
 
-const DbService = require('../services/dbService_fixed');
 const db = require('../config/db');
 const logger = require('../utils/logger');
 const crypto = require('crypto');

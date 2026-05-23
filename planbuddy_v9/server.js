@@ -339,6 +339,7 @@ function registerShutdownHandlers() {
  */
 async function verifyDependencies() {
   const checkTimeout = 5000; // 5s timeout per check
+  const db = require('./config/db');
 
   // Check database
   try {

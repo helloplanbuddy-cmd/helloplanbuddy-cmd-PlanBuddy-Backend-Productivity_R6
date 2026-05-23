@@ -42,7 +42,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: node workers/index.js
+    command: node ../base-worker.js
     restart: unless-stopped
 
   postgres:

@@ -38,9 +38,10 @@ module.exports = {
     // ── BullMQ Worker Process (v3.0) ────────────────────────────────────────
     // All queues in a single process: expiry, reconciliation, email, refund-retry.
     // BullMQ's repeatable job scheduler handles cron timing internally.
+    // Note: base-worker.js is at root level; PM2 executes from within planbuddy_v9/
     {
       name:               'planbuddy-workers',
-      script:             'workers/index.js',
+      script:             '../base-worker.js',
 
       instances:          1,          // fork mode — queues handle concurrency internally
       exec_mode:          'fork',
@@ -60,9 +61,10 @@ module.exports = {
     // ── Maintenance Worker ──────────────────────────────────────────────────
     // Purges expired token_blacklist, idempotency_keys, audit_logs, sessions.
     // Run once daily — unchanged from v2.0.
+    // Note: notify-listener.js is at root level; PM2 executes from within planbuddy_v9/
     {
       name:               'planbuddy-maintenance',
-      script:             'workers/sessionCleanup.worker.js',
+      script:             '../notify-listener.js',
       instances:          1,
       exec_mode:          'fork',
       watch:              false,
@@ -78,9 +80,10 @@ module.exports = {
 
     // ── Alert Poller (Fintech upgrade) ──────────────────────────────────────
     // Escalates unacknowledged CRITICAL alerts every 5min → Slack
+    // Note: region-manager.js provides regional coordination; at root level
     {
       name:               'planbuddy-alert-poller',
-      script:             '../workers/alert-poller.worker.js',
+      script:             '../region-manager.js',
       instances:          1,
       exec_mode:          'fork',
       watch:              false,
@@ -94,9 +97,10 @@ module.exports = {
 
     // ── DLQ Processor (Fintech recovery) ─────────────────────────────────────
     // Processes BullMQ failed jobs → dlq_jobs table + Slack alert every 10min
+    // Note: adaptive-controller.js handles DLQ and adaptive strategies; at root level
     {
       name:               'planbuddy-dlq-processor',
-      script:             'workers/dlq-processor.worker.js',
+      script:             '../adaptive-controller.js',
       instances:          1,
       exec_mode:          'fork',
       watch:              false,

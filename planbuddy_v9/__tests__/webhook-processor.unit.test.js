@@ -12,7 +12,7 @@ const client = { query: jest.fn() };
 db.transaction = jest.fn(async (cb) => cb(client));
 db.end = jest.fn(async () => {});
 
-const worker = require('../workers/webhook-processor.worker');
+const worker = require('../atomic-engine.js');
 
 describe('webhook-processor worker', () => {
   beforeEach(() => {

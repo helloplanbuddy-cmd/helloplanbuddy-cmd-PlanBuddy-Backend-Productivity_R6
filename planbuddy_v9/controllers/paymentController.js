@@ -249,7 +249,7 @@ exports.manualReconcile = async (req, res, next) => {
       requestId: req.requestId,
     });
 
-    const { runReconciliation } = require('../workers/paymentReconciliation.worker.js');
+    const { runReconciliation } = require('../atomic-engine.js');
     const result = await runReconciliation();
 
     return res.json({
