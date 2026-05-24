@@ -135,12 +135,12 @@ async function authenticate(req, res, next) {
 
   try {
     const decoded = verifyToken(token);
-    const userId  = decoded.sub;
+    const userId  = decoded.sub || decoded.id;
     const redis   = getRedis();
 
     // ── 3. JTI revocation check (Redis-cached) ────────────────────────────
     if (decoded.jti) {
-      const revoked = await isRevoked(decoded.jti, db, redis);
+      const revoked = await isRevoked(decoded.jti, userId, decoded.iat, db, redis);
       if (revoked) {
         return res.status(401).json({
           success: false,
@@ -226,7 +226,7 @@ async function authenticate(req, res, next) {
  * @param {...string} roles
  */
 function requireRole(...roles) {
-  return (req, res, next) => {
+  const middleware = (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({ success: false, message: 'Authentication required.' });
     }
@@ -247,6 +247,13 @@ function requireRole(...roles) {
     }
     next();
   };
+
+  Object.defineProperty(middleware, 'name', {
+    value: `requireRole(${roles.join('|')})`,
+    configurable: true,
+  });
+
+  return middleware;
 }
 
 // ─── invalidateUserActiveCache ────────────────────────────────────────────────

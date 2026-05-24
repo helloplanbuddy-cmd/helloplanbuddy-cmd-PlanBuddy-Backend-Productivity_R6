@@ -354,7 +354,7 @@ function idempotency(req, res, next) {
 //   router.post('/bookings', idempotency.strict, controller.createBooking);
 
 function idempotencyStrict(req, res, next) {
-  console.log(`[TRACE:${req.id}] idempotency.strict EXECUTED`);
+  console.log(`[TRACE:${req.requestId}] idempotency.strict EXECUTED`);
   const rawKey = req.headers['idempotency-key'];
 
   if (!rawKey || rawKey.trim() === '') {

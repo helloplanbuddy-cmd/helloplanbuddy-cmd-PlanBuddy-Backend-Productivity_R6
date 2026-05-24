@@ -25,11 +25,14 @@
 const Redis  = require('ioredis');
 const logger = require('../utils/logger');
 
-const REDIS_URL = process.env.RATE_LIMIT_REDIS_URL || process.env.REDIS_URL;
+const explicitUrl = process.env.RATE_LIMIT_REDIS_URL || process.env.REDIS_URL;
+const host = process.env.REDIS_HOST || '127.0.0.1';
+const port = process.env.REDIS_PORT || '6379';
+const REDIS_URL = explicitUrl || `redis://${host}:${port}`;
 
 if (!REDIS_URL) {
   throw new Error(
-    '[rateLimitRedis] Neither RATE_LIMIT_REDIS_URL nor REDIS_URL is set. ' +
+    '[rateLimitRedis] Neither RATE_LIMIT_REDIS_URL nor REDIS_URL nor REDIS_HOST/REDIS_PORT is set. ' +
     'Rate limiting requires a Redis connection.'
   );
 }

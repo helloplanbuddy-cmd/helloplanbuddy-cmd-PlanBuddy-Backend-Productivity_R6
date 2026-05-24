@@ -237,7 +237,9 @@ exports.logout = async (req, res, next) => {
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const decoded = decodeToken(authHeader.slice(7));
       if (decoded?.jti) {
-        await revokeToken(decoded.jti, decoded.sub || req.user?.id, db, redis);
+        await revokeToken(decoded.jti, decoded.sub || decoded.id || req.user?.id, db, redis, {
+          expiresAt: decoded.exp ? new Date(decoded.exp * 1000) : undefined,
+        });
       }
     }
 
@@ -449,7 +451,11 @@ exports.changePassword = async (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (authHeader) {
       const decoded = decodeToken(authHeader.slice(7));
-      if (decoded?.jti) await revokeToken(decoded.jti, req.user.id, db, redis);
+      if (decoded?.jti) {
+        await revokeToken(decoded.jti, req.user.id, db, redis, {
+          expiresAt: decoded.exp ? new Date(decoded.exp * 1000) : undefined,
+        });
+      }
     }
 
     AuditService.log({ action: AuditService.ACTIONS.USER_PASSWORD_CHANGED, entityType: 'user', entityId: req.user.id, req });

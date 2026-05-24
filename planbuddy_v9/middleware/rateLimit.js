@@ -271,13 +271,18 @@ function makeLimiter({
     },
   });
 
+  Object.defineProperty(limiter, 'name', {
+    value: name,
+    configurable: true,
+  });
+
   if (!failClosed) {
     return limiter;
   }
 
   // ── Fail-closed wrapper ────────────────────────────────────────────────────
   // For auth/payment/webhook: Redis down → 503 (no brute-force bypass).
-  return function failClosedMiddleware(req, res, next) {
+  const failClosedMiddleware = function (req, res, next) {
     // FIX-1: same isBypassPath() guard (was broken in v4.0)
     if (isBypassPath(req)) {
       return next();
@@ -312,6 +317,13 @@ function makeLimiter({
 
     return limiter(req, res, next);
   };
+
+  Object.defineProperty(failClosedMiddleware, 'name', {
+    value: name,
+    configurable: true,
+  });
+
+  return failClosedMiddleware;
 }
 
 // ─── Limiter instances ────────────────────────────────────────────────────────

@@ -169,13 +169,14 @@ async function closeRedis() {
     const closeStartTime = Date.now();
 
     // Close rate limit Redis
-    if (redisModule.rateLimitRedis && typeof redisModule.rateLimitRedis.quit === 'function') {
-      try {
-        await redisModule.rateLimitRedis.quit();
+    try {
+      const { closeRateLimitRedis } = require('./config/rateLimitRedis');
+      if (typeof closeRateLimitRedis === 'function') {
+        await closeRateLimitRedis();
         logger.debug('[shutdown] Rate limit Redis closed');
-      } catch (err) {
-        logger.warn({ err: err.message }, '[shutdown] Rate limit Redis close error');
       }
+    } catch (err) {
+      logger.debug({ err: err.message }, '[shutdown] Rate limit Redis not available or close failed');
     }
 
     // Close cache Redis
@@ -374,9 +375,25 @@ async function verifyDependencies() {
       logger.warn('[startup] Redis: Not initialized (optional)');
     }
   } catch (err) {
-    // Redis is required for some features, but health endpoints should still be reachable.
-    // Non-fatal: we allow the server to start and individual services will degrade.
     logger.warn({ err: err.message }, '[startup] Redis: FAILED (non-fatal)');
+  }
+
+  // Check dedicated rate-limit Redis
+  try {
+    logger.info('[startup] Verifying rate-limit Redis connectivity...');
+    const { rateLimitRedis } = require('./config/rateLimitRedis');
+
+    await Promise.race([
+      rateLimitRedis.ping(),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Rate-limit Redis check timeout')), checkTimeout)
+      ),
+    ]);
+
+    logger.info('[startup] Rate-limit Redis: OK');
+  } catch (err) {
+    logger.error({ err: err.message }, '[startup] Rate-limit Redis: FAILED');
+    throw new Error(`Rate-limit Redis unreachable: ${err.message}`);
   }
 }
 

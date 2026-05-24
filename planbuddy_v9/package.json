@@ -14,7 +14,9 @@
     "worker:webhook": "node workers/start-webhook.js",
     "worker:refund": "node workers/start-refund.js",
     "worker:email": "node workers/start-email.js",
-    "worker:scheduler": "node workers/start-scheduler.js"
+    "worker:scheduler": "node workers/start-scheduler.js",
+    "audit:routes": "node scripts/routeAudit.js"
+    ,"audit:master": "node scripts/auditMaster.js"
   },
   "dependencies": {
     "bullmq": "^5.76.5",

@@ -22,6 +22,7 @@
  *   readinessProbe → /health/ready (remove from LB if DB down)
  */
 
+const db = require('../config/db');
 const reliabilityState = require('../utils/queueReliabilityState');
 
 // Deterministic, sync-only /health handler. Intentionally does not touch DB/Redis/BullMQ.
@@ -59,7 +60,19 @@ exports.live = (req, res) => {
  *   • Queue Redis down: API still works; background jobs pause until Redis recovers.
  *   • Returning 200 prevents Kubernetes from killing the pod during a Redis blip.
  */
-exports.ready = (req, res) => {
+exports.ready = async (req, res) => {
+  try {
+    await db.query('SELECT 1');
+  } catch (err) {
+    return res.status(503).json({
+      status: 'not ready',
+      health: 'red',
+      reason: ['db_unreachable'],
+      error: err.message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
   const snapshot = reliabilityState.getSnapshot();
   const statusInfo = reliabilityState.computeStatus();
 

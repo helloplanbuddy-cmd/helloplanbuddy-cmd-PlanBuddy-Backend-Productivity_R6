@@ -42,6 +42,7 @@ const { backpressureMiddleware } = require('./middleware/backpressure');
 const monitoring                 = require('./utils/monitoring');
 const logger                     = require('./utils/logger');
 const { traceIdMiddleware }      = require('./middleware/traceId');
+const internalIpGuard            = require('./middleware/internalIpGuard');
 const internalRoutes             = require('./routes/internal');
 
 const app = express();
@@ -201,6 +202,12 @@ app.get('/metrics', async (req, res) => {
   res.end(await monitoring.register.metrics());
 });
 
+const healthController = require('./controllers/healthController');
+app.get('/health/live', healthController.live);
+app.get('/health/ready', healthController.ready);
+app.get('/health', healthController.readiness);
+app.get('/health/production', healthController.production);
+
 // ─── Production health cron ───────────────────────────────────────────────────
 // IMPORTANT: this cron populates DLQ depth and integrity mismatch metrics.
 // Without it, Prometheus alerts fire on hardcoded zeros forever.
@@ -240,7 +247,7 @@ app.use('/api/v1', apiVersion('v1'), routes);
 // router instead of reusing the canonical route definitions.
 
 // ─── Internal observability routes (IP-guarded, NOT under /api/v1) ───────────
-app.use('/internal', internalRoutes);
+app.use('/internal', internalIpGuard, internalRoutes);
 
 // ─── Root ─────────────────────────────────────────────────────────────────────
 app.get('/', (req, res) => {

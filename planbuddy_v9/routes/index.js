@@ -17,6 +17,8 @@ router.get('/status', (req, res) => {
 
 // Health endpoints
 const healthController = require('../controllers/healthController');
+router.get('/health/live', healthController.live);
+router.get('/health/ready', healthController.ready);
 router.get('/health', healthController.readiness);
 router.get('/health/production', healthController.production);
 
