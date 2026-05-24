@@ -272,12 +272,78 @@ async function handleRazorpayWebhook(req, res) {
   return res.status(200).json({ success: true });
 }
 
-async function applyPaymentEvent(client, payload) {
-  throw new Error('applyPaymentEvent is not implemented in razorpayWebhookController');
+async function applyPaymentEvent(client, { eventType, paymentId, eventId }) {
+  if (!paymentId) {
+    logger.warn({ eventId, eventType }, '[webhook-processor] Missing paymentId for payment event');
+    return;
+  }
+
+  if (eventType === 'payment.captured' || eventType === 'payment.authorized') {
+    await client.query(
+      `UPDATE payments
+         SET status = 'captured', updated_at = NOW()
+       WHERE razorpay_payment_id = $1
+         AND status = 'created'`,
+      [paymentId]
+    );
+
+    await client.query(
+      `UPDATE bookings
+         SET payment_status = 'paid', status = 'confirmed', updated_at = NOW()
+       WHERE id = (
+         SELECT booking_id FROM payments WHERE razorpay_payment_id = $1
+       )
+         AND status = 'pending'`,
+      [paymentId]
+    );
+
+    return;
+  }
+
+  if (eventType === 'payment.failed') {
+    await client.query(
+      `UPDATE payments
+         SET status = 'failed', updated_at = NOW()
+       WHERE razorpay_payment_id = $1
+         AND status = 'created'`,
+      [paymentId]
+    );
+    return;
+  }
+
+  logger.info({ eventType, paymentId, eventId }, '[webhook-processor] No payment mutation required for event type');
 }
 
-async function applyRefundEvent(client, payload) {
-  throw new Error('applyRefundEvent is not implemented in razorpayWebhookController');
+async function applyRefundEvent(client, { eventType, payload, refundId, eventId }) {
+  if (!refundId) {
+    logger.warn({ eventId, eventType }, '[webhook-processor] Missing refundId for refund event');
+    return;
+  }
+
+  const paymentId = payload?.payload?.payment?.entity?.id || null;
+
+  if (eventType === 'refund.processed' || eventType === 'refund.paid') {
+    await client.query(
+      `UPDATE payments
+         SET status = 'refunded', refund_id = $1, refunded_at = NOW(), updated_at = NOW()
+       WHERE razorpay_payment_id = $2
+         AND status IN ('captured', 'success')`,
+      [refundId, paymentId]
+    );
+
+    await client.query(
+      `UPDATE bookings
+         SET payment_status = 'refunded', updated_at = NOW()
+       WHERE id = (
+         SELECT booking_id FROM payments WHERE razorpay_payment_id = $2
+       )`,
+      [refundId, paymentId]
+    );
+
+    return;
+  }
+
+  logger.info({ eventType, refundId, eventId }, '[webhook-processor] No refund mutation required for event type');
 }
 
 // Backward-compatible export for older code/tests.

@@ -1,0 +1,7 @@
+.vscode
+.codex
+node_modules
+dist
+build
+AppData
+

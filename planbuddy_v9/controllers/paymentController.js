@@ -280,7 +280,7 @@ exports.getPaymentStatus = async (req, res, next) => {
        FROM payments p
        LEFT JOIN bookings b ON p.booking_id = b.id
        LEFT JOIN trips    t ON b.trip_id    = t.id
-       WHERE p.id = $1 OR p.razorpay_payment_id = $1
+       WHERE (p.id = $1 OR p.razorpay_payment_id = $1)
          AND (p.user_id = $2 OR $3 = 'admin')`,
       [paymentId, userId, req.user.role]
     );

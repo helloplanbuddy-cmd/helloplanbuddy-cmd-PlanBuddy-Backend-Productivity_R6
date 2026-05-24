@@ -14,6 +14,50 @@ const db = require('../config/db');
 const { executeExactlyOnceRefund } = require('../services/exactlyOnceRefund');
 const { initiateRefund } = require('../services/refundService');
 const { CircuitBreaker } = require('../utils/circuitBreakerUtil');
+const { randomUUID } = require('crypto');
+
+// Ensure a minimal mock for Razorpay refunds during tests
+const razorpayConfig = require('../config/razorpay');
+if (!razorpayConfig.razorpay || typeof razorpayConfig.razorpay.refunds?.create !== 'function') {
+  razorpayConfig.razorpay = razorpayConfig.razorpay || {};
+  razorpayConfig.razorpay.refunds = {
+    async create({ payment_id, amount, notes }) {
+      return { id: `rfnd_${Date.now()}`, status: 'processed' };
+    }
+  };
+}
+
+async function createUserBookingPayment({ razorpayPaymentId = `pay_${Date.now()}-${randomUUID()}`, amount = 1000 }) {
+  const userRes = await db.query(
+    `INSERT INTO users (email, password_hash, name, role)
+     VALUES ($1, $2, $3, $4)
+     RETURNING id`,
+    [`test-refund-${Date.now()}@test.com`, 'hash', 'Test User', 'user']
+  );
+  const userId = userRes.rows[0].id;
+  const tripRes = await db.query(
+    `INSERT INTO trips (agency_id, title, description, location, price, max_group_size)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING id`,
+    [userId, 'Test Trip', 'Test trip for refunds', 'Nowhere', amount, 10]
+  );
+  const tripId = tripRes.rows[0].id;
+  const bookingRes = await db.query(
+    `INSERT INTO bookings (user_id, agency_id, trip_id, group_size, total_amount, final_amount, travel_date, status, payment_status)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     RETURNING id`,
+    [userId, userId, tripId, 1, amount, amount, '2026-12-01', 'confirmed', 'paid']
+  );
+  const bookingId = bookingRes.rows[0].id;
+  const paymentRes = await db.query(
+    `INSERT INTO payments (booking_id, user_id, razorpay_payment_id, amount, currency, status)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING id`,
+    [bookingId, userId, razorpayPaymentId, amount, 'INR', 'captured']
+  );
+  const paymentId = paymentRes.rows[0].id;
+  return { userId, bookingId, paymentId };
+}
 
 describe('Refund System: Exactly-Once Guarantee', () => {
   
@@ -22,17 +66,9 @@ describe('Refund System: Exactly-Once Guarantee', () => {
     
     test('should prevent duplicate refunds with same idempotency key', async () => {
       // Setup: Create payment + booking
-      const bookingId = 'test-booking-1';
-      const paymentId = 'test-payment-1';
-      const razorpayPaymentId = 'pay_TEST123';
-      const idempotencyKey = 'idem-key-unique-1';
-      
-      // Insert payment
-      await db.query(
-        `INSERT INTO payments (id, booking_id, razorpay_payment_id, amount, status)
-         VALUES ($1, $2, $3, $4, 'captured')`,
-        [paymentId, bookingId, razorpayPaymentId, 50000]
-      );
+      const razorpayPaymentId = `pay_TEST123-${randomUUID()}`;
+      const idempotencyKey = `idem-key-unique-1-${randomUUID()}`;
+      const { userId, bookingId, paymentId } = await createUserBookingPayment({ razorpayPaymentId, amount: 50000 });
 
       // First refund call
       const result1 = await executeExactlyOnceRefund({
@@ -69,15 +105,8 @@ describe('Refund System: Exactly-Once Guarantee', () => {
     });
 
     test('should allow different refunds with different idempotency keys', async () => {
-      const bookingId = 'test-booking-2';
-      const paymentId = 'test-payment-2';
-      const razorpayPaymentId = 'pay_TEST456';
-
-      await db.query(
-        `INSERT INTO payments (id, booking_id, razorpay_payment_id, amount, status)
-         VALUES ($1, $2, $3, $4, 'captured')`,
-        [paymentId, bookingId, razorpayPaymentId, 30000]
-      );
+      const razorpayPaymentId = `pay_TEST456-${randomUUID()}`;
+      const { userId, bookingId, paymentId } = await createUserBookingPayment({ razorpayPaymentId, amount: 30000 });
 
       const result1 = await executeExactlyOnceRefund({
         paymentId,
@@ -116,15 +145,8 @@ describe('Refund System: Exactly-Once Guarantee', () => {
   describe('Concurrent Request Safety', () => {
     
     test('should handle 10 concurrent refund requests safely', async () => {
-      const bookingId = 'concurrent-booking-1';
-      const paymentId = 'concurrent-payment-1';
-      const razorpayPaymentId = 'pay_CONCURRENT1';
-
-      await db.query(
-        `INSERT INTO payments (id, booking_id, razorpay_payment_id, amount, status)
-         VALUES ($1, $2, $3, $4, 'captured')`,
-        [paymentId, bookingId, razorpayPaymentId, 10000]
-      );
+      const razorpayPaymentId = `pay_CONCURRENT1-${randomUUID()}`;
+      const { userId, bookingId, paymentId } = await createUserBookingPayment({ razorpayPaymentId, amount: 10000 });
 
       // Fire 10 concurrent refund requests
       const promises = Array(10)
@@ -232,15 +254,8 @@ describe('Refund System: Exactly-Once Guarantee', () => {
   describe('Financial Audit Trail', () => {
     
     test('should create audit log entry for refund', async () => {
-      const bookingId = 'audit-booking-1';
-      const paymentId = 'audit-payment-1';
-
-      // Insert payment + booking
-      await db.query(
-        `INSERT INTO payments (id, booking_id, razorpay_payment_id, amount, status)
-         VALUES ($1, $2, 'pay_AUDIT1', $3, 'captured')`,
-        [paymentId, bookingId, 5000]
-      );
+      const razorpayPaymentId = `pay_AUDIT1-${randomUUID()}`;
+      const { userId, bookingId, paymentId } = await createUserBookingPayment({ razorpayPaymentId, amount: 5000 });
 
       // Initiate refund
       const refund = await initiateRefund(bookingId, 50, 'Audit test', 'audit-user');
@@ -265,23 +280,25 @@ describe('Refund System: Exactly-Once Guarantee', () => {
   describe('Database Uniqueness Constraints', () => {
     
     test('should enforce UNIQUE(payment_id, idempotency_key)', async () => {
-      const paymentId = 'constraint-payment-1';
-      const idemKey = 'constraint-key-1';
+      const { userId, bookingId, paymentId } = await createUserBookingPayment({ razorpayPaymentId: `pay_CONSTRAINT1-${randomUUID()}`, amount: 100 });
+      const idemKey = `constraint-key-1-${randomUUID()}`;
+      const refundIdA = `rfnd_TEST1-${randomUUID()}`;
+      const refundIdB = `rfnd_TEST2-${randomUUID()}`;
 
       // Insert two refund records with same payment_id + idempotency_key
       await db.query(
-        `INSERT INTO refunds (payment_id, idempotency_key, razorpay_refund_id, amount, status)
-         VALUES ($1, $2, 'rfnd_TEST1', 100, 'succeeded')`,
-        [paymentId, idemKey]
+        `INSERT INTO refunds (payment_id, booking_id, user_id, idempotency_key, razorpay_refund_id, amount, status)
+         VALUES ($1, $2, $3, $4, $5, 100, 'succeeded')`,
+        [paymentId, bookingId, userId, idemKey, refundIdA]
       );
 
       // Try to insert duplicate
       let constraintViolated = false;
       try {
         await db.query(
-          `INSERT INTO refunds (payment_id, idempotency_key, razorpay_refund_id, amount, status)
-           VALUES ($1, $2, 'rfnd_TEST2', 100, 'succeeded')`,
-          [paymentId, idemKey]
+          `INSERT INTO refunds (payment_id, booking_id, user_id, idempotency_key, razorpay_refund_id, amount, status)
+           VALUES ($1, $2, $3, $4, $5, 100, 'succeeded')`,
+          [paymentId, bookingId, userId, idemKey, refundIdB]
         );
       } catch (err) {
         if (err.code === '23505') {  // Unique constraint violation
@@ -293,22 +310,26 @@ describe('Refund System: Exactly-Once Guarantee', () => {
     });
 
     test('should enforce UNIQUE(razorpay_refund_id)', async () => {
-      const refundId = 'rfnd_CONSTRAINT1';
+      const refundId = `rfnd_CONSTRAINT1-${randomUUID()}`;
+
+      // Create two payments/bookings to back refunds
+      const fixture1 = await createUserBookingPayment({ razorpayPaymentId: `pay_CONS_A-${randomUUID()}`, amount: 100 });
+      const fixture2 = await createUserBookingPayment({ razorpayPaymentId: `pay_CONS_B-${randomUUID()}`, amount: 100 });
 
       // Insert first refund
       await db.query(
-        `INSERT INTO refunds (payment_id, razorpay_refund_id, amount, status)
-         VALUES (uuid_generate_v4(), $1, 100, 'succeeded')`,
-        [refundId]
+        `INSERT INTO refunds (payment_id, booking_id, user_id, razorpay_refund_id, amount, status)
+         VALUES ($1, $2, $3, $4, 100, 'succeeded')`,
+        [fixture1.paymentId, fixture1.bookingId, fixture1.userId, refundId]
       );
 
-      // Try to insert with same razorpay_refund_id
+      // Try to insert with same razorpay_refund_id on different payment
       let constraintViolated = false;
       try {
         await db.query(
-          `INSERT INTO refunds (payment_id, razorpay_refund_id, amount, status)
-           VALUES (uuid_generate_v4(), $1, 100, 'succeeded')`,
-          [refundId]
+          `INSERT INTO refunds (payment_id, booking_id, user_id, razorpay_refund_id, amount, status)
+           VALUES ($1, $2, $3, $4, 100, 'succeeded')`,
+          [fixture2.paymentId, fixture2.bookingId, fixture2.userId, refundId]
         );
       } catch (err) {
         if (err.code === '23505') {

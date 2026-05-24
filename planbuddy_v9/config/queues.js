@@ -26,6 +26,9 @@
 const { Queue } = require('bullmq');
 const { redisQueue } = require('./redis');
 
+// ─── PHASE 3 WIRING: Queue Reliability State (Step 2 — Queue init tracking) ────
+const reliabilityState = require('../utils/queueReliabilityState');
+
 // ─── Shared BullMQ connection ─────────────────────────────────────────────────
 
 const connection = redisQueue;
@@ -131,11 +134,16 @@ async function scheduleRepeatableJobs() {
       { name: 'reconciliation-run', data: {}, opts: DEFAULT_JOB_OPTIONS }
     );
 
+    // PHASE 3: Mark queues as initialized (Step 2 — Queue init success)
+    reliabilityState.markQueueInitialized();
+
     logger.info(
       '[queues] 🚀 PHASE 2A: Repeatable jobs scheduled with 5-retry policy: ' +
       'booking-expiry (60s), reconciliation (5m)'
     );
   } catch (err) {
+    // PHASE 3: Mark queue init error (Step 2 — Queue init failure)
+    reliabilityState.markQueueInitError(err);
     logger.error({ err }, '[queues] Failed to schedule repeatable jobs');
     throw err;
   }
@@ -149,6 +157,7 @@ async function closeQueues() {
     reconciliationQueue.close(),
     emailQueue.close(),
     refundRetryQueue.close(),
+    webhookEventsQueue.close(),
   ]);
 }
 

@@ -16,20 +16,7 @@
 --   ✅ State machine enforced at trigger layer (not ENUM layer)
 
 -- ══════════════════════════════════════════════════════════════════════════════
--- PHASE 1: Non-transactional — indexes must be created OUTSIDE a transaction
---          when using CONCURRENTLY. Run this first.
--- ══════════════════════════════════════════════════════════════════════════════
-
--- [FIX-BUG-3] CONCURRENTLY indexes must live outside BEGIN/COMMIT.
--- These are safe to re-run — IF NOT EXISTS guards them.
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_booking_requests_key
-  ON booking_requests(idempotency_key);
-
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_booking_requests_booking
-  ON booking_requests(booking_id);
-
--- ══════════════════════════════════════════════════════════════════════════════
--- PHASE 2: Transactional — all DDL + DML changes wrapped in one transaction
+-- PHASE 1: Transactional — create new schema objects safely inside one transaction
 -- ══════════════════════════════════════════════════════════════════════════════
 
 BEGIN;
@@ -152,6 +139,17 @@ VALUES ('140', '140_idempotency_state_machine.sql')
 ON CONFLICT (version) DO NOTHING;
 
 COMMIT;
+
+-- PHASE 2: Non-transactional — indexes must be created OUTSIDE a transaction
+-- ══════════════════════════════════════════════════════════════════════════════
+
+-- [FIX-BUG-3] CONCURRENTLY indexes must live outside BEGIN/COMMIT.
+-- These are safe to re-run — IF NOT EXISTS guards them.
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_booking_requests_key
+  ON booking_requests(idempotency_key);
+
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_booking_requests_booking
+  ON booking_requests(booking_id);
 
 -- ══════════════════════════════════════════════════════════════════════════════
 -- ROLLBACK SCRIPT (run manually to revert — do NOT run during normal migration)

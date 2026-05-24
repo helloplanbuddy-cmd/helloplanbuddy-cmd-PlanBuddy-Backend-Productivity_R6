@@ -45,14 +45,26 @@ ALTER TABLE webhook_events
   UNIQUE (provider, razorpay_event_id, signature);
 
 -- 4. Add index for verified status (for replay/recovery queries)
-CREATE INDEX IF NOT EXISTS idx_webhook_events_verified
-  ON webhook_events (verified_at, status)
-  WHERE verified_at IS NOT NULL;
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'webhook_events' AND column_name = 'status'
+  ) THEN
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_webhook_events_verified ON webhook_events (verified_at, status) WHERE verified_at IS NOT NULL';
+  END IF;
+END $$;
 
 -- 5. Add index for unverified events (for security audit queries)
-CREATE INDEX IF NOT EXISTS idx_webhook_events_unverified
-  ON webhook_events (created_at)
-  WHERE verified_at IS NULL;
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'webhook_events' AND column_name = 'created_at'
+  ) THEN
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_webhook_events_unverified ON webhook_events (created_at) WHERE verified_at IS NULL';
+  END IF;
+END $$;
 
 -- 6. Add check constraint: if verified_at is set, signature must be present
 ALTER TABLE webhook_events

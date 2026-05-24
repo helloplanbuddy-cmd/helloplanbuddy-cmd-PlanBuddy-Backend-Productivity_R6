@@ -201,7 +201,8 @@ class Database {
         host: process.env.DB_HOST,
         port: process.env.DB_PORT,
         database: process.env.DB_NAME,
-        user: process.env.DB_USER,
+        user: process.env.DB_USER ? 'REDACTED' : undefined,
+        password: process.env.DB_PASSWORD ? 'REDACTED' : undefined,
         ssl: process.env.DB_SSL,
         nodeEnv: process.env.NODE_ENV,
       });

@@ -159,6 +159,7 @@ class MockDatabase extends EventEmitter {
       schema_migrations: new Map(),
     };
     this.idempotencyIndex.clear();
+    this.removeAllListeners?.();
   }
 
   /**

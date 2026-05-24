@@ -28,8 +28,8 @@ CREATE INDEX IF NOT EXISTS idx_payment_integrity_log_mismatch_recent
 ON payment_integrity_log(created_at DESC)
 WHERE mismatch = true;
 
-INSERT INTO schema_migrations (version, filename, description)
-VALUES ('190', '190_payment_integrity_log.sql', 'payment integrity log')
+INSERT INTO schema_migrations (version, filename)
+VALUES ('190', '190_payment_integrity_log.sql')
 ON CONFLICT (version) DO NOTHING;
 
 COMMIT;

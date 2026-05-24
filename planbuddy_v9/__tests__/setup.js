@@ -31,8 +31,52 @@ let globalDb = null;
 async function runMigration(client, migrationPath) {
   const filename = path.basename(migrationPath);
   try {
-    const sql = fs.readFileSync(migrationPath, 'utf8');
-    await client.query(sql);
+    let sql = fs.readFileSync(migrationPath, 'utf8');
+
+    // Strip any embedded INSERT into schema_migrations to avoid incompatible
+    // columns across environments. Jest setup records migrations separately.
+    sql = sql.replace(/INSERT INTO schema_migrations[\s\S]*?ON CONFLICT[\s\S]*?;/ig, '-- schema_migrations INSERT stripped by jest-setup;');
+
+    const hasConcurrentIndex = /CREATE\s+INDEX\s+CONCURRENTLY/i.test(sql);
+    const beginSplit = sql.split(/\r?\nBEGIN;\r?\n/i);
+    const commitSplit = sql.split(/\r?\nCOMMIT;\r?\n/i);
+
+    if (hasConcurrentIndex && commitSplit.length === 2) {
+      const [beforeCommit, afterCommit] = commitSplit;
+
+      await client.query(`${beforeCommit}\nCOMMIT;`);
+
+      if (afterCommit.trim()) {
+        const indexStatements = afterCommit
+          .split(/;\s*(?:\r?\n|$)/)
+          .map((stmt) => stmt.trim())
+          .filter(Boolean);
+
+        for (const stmt of indexStatements) {
+          await client.query(stmt);
+        }
+      }
+    } else if (hasConcurrentIndex && beginSplit.length === 2) {
+      const [beforeBegin, afterBegin] = beginSplit;
+
+      if (beforeBegin.trim()) {
+        const indexStatements = beforeBegin
+          .split(/;\s*(?:\r?\n|$)/)
+          .map((stmt) => stmt.trim())
+          .filter(Boolean);
+
+        for (const stmt of indexStatements) {
+          await client.query(stmt);
+        }
+      }
+
+      if (afterBegin.trim()) {
+        await client.query(`BEGIN;\n${afterBegin}`);
+      }
+    } else {
+      await client.query(sql);
+    }
+
     logger.log(`✓ Migration ${filename}`);
     return true;
   } catch (err) {
@@ -49,7 +93,10 @@ async function runMigration(client, migrationPath) {
  * Initialize test database + run all migrations
  */
 async function setupDatabase() {
-  const databaseUrl = process.env.DATABASE_URL;
+  const databaseUrl = process.env.NODE_ENV === 'test' && process.env.DATABASE_TEST_URL
+    ? process.env.DATABASE_TEST_URL
+    : process.env.DATABASE_URL;
+
   if (!databaseUrl) {
     throw new Error('DATABASE_URL env var not set');
   }
@@ -62,6 +109,9 @@ async function setupDatabase() {
     throw new Error('DATABASE_URL must include database name');
   }
 
+  const wantsSsl = /[?&]sslmode=|[?&]ssl=/.test(databaseUrl);
+  const sslConfig = wantsSsl ? { rejectUnauthorized: false } : false;
+
   logger.log(`\n[jest-setup] Initializing test database: ${dbName}`);
 
   // First try to connect to the specified database
@@ -70,7 +120,7 @@ async function setupDatabase() {
   try {
     const pool = new Pool({
       connectionString: databaseUrl,
-      ssl: { rejectUnauthorized: false },
+      ssl: sslConfig,
       connectionTimeoutMillis: 3000,
       statement_timeout: 5000,
     });
@@ -92,7 +142,7 @@ async function setupDatabase() {
       adminUrl.pathname = '/postgres';
       const adminPool = new Pool({
         connectionString: adminUrl.toString(),
-        ssl: { rejectUnauthorized: false },
+        ssl: sslConfig,
         connectionTimeoutMillis: 3000,
         statement_timeout: 5000,
       });
@@ -117,7 +167,7 @@ async function setupDatabase() {
   // Now run migrations on the target database
   const migrationPool = new Pool({
     connectionString: databaseUrl,
-    ssl: { rejectUnauthorized: false },
+    ssl: sslConfig,
     connectionTimeoutMillis: 3000,
     statement_timeout: 30000, // Migrations can take longer
   });
@@ -161,7 +211,7 @@ async function setupDatabase() {
 
       // Record it
       await migrationClient.query(
-        'INSERT INTO schema_migrations (version, filename) VALUES ($1, $2)',
+        'INSERT INTO schema_migrations (version, filename) VALUES ($1, $2) ON CONFLICT (version) DO NOTHING',
         [version, file]
       );
     }

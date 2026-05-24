@@ -102,13 +102,12 @@ function checkEventLoopLag() {
  */
 async function getDbPoolHealth() {
   try {
-    const result = await db.query('SELECT 1');
     const pool = db.pool || {};
     const total = pool.totalCount || 0;
     const idle = pool.idleCount || 0;
-    const used = total - idle;
+    const used = Math.max(0, total - idle);
     const utilization = total > 0 ? used / total : 0;
-    
+
     return {
       total,
       used,
@@ -123,9 +122,24 @@ async function getDbPoolHealth() {
 }
 
 /**
+ * Bypass backpressure for non-API observability endpoints.
+ */
+function shouldBypassBackpressure(req) {
+  return (
+    req.path.startsWith('/health') ||
+    req.path.startsWith('/metrics') ||
+    req.path.startsWith('/internal')
+  );
+}
+
+/**
  * Middleware to track requests and apply smart backpressure.
  */
 async function backpressureMiddleware(req, res, next) {
+  if (shouldBypassBackpressure(req)) {
+    return next();
+  }
+
   const correlationId = req.headers['x-correlation-id'] || `bp-${Date.now()}`;
   const startTime = Date.now();
   const tier = getPriorityTier(req.path);
@@ -183,7 +197,7 @@ async function backpressureMiddleware(req, res, next) {
       correlationId,
       tier,
       rejectReason,
-      activeRequests: activeRequests - 1,
+      activeRequests,
       loadPercent: Math.round(load * 100),
       path: req.path,
     });

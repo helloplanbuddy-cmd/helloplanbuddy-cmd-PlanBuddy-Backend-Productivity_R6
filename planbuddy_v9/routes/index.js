@@ -25,6 +25,7 @@ router.get('/health/production', healthController.production);
 const bookingController = require('../controllers/bookingController');
 const paymentController = require('../controllers/paymentController');
 const { authenticate, requireRole } = require('../middleware');
+const { webhookLimiter } = require('../middleware/rateLimit');
 const idempotency = require('../middleware/idempotency');
 
 
@@ -66,6 +67,13 @@ router.post(
   paymentController.verifyPayment
 );
 
+// GET /payment/status/:paymentId — view payment status
+router.get(
+  '/payment/status/:paymentId',
+  authenticate,
+  paymentController.getPaymentStatus
+);
+
 // POST /admin/payments/:paymentId/reconcile — manual reconciliation (admin only)
 // ✅ IDEMPOTENCY ENFORCEMENT: Idempotency-Key header REQUIRED
 router.post(
@@ -77,7 +85,7 @@ router.post(
 );
 
 // POST /payment/webhook/razorpay — Razorpay webhook ingestion
-router.post('/payment/webhook/razorpay', paymentController.razorpayWebhook);
+router.post('/payment/webhook/razorpay', webhookLimiter, paymentController.razorpayWebhook);
 
 // Check availability
 router.get('/trips/:tripId/availability', bookingController.checkAvailability);

@@ -337,6 +337,8 @@ function registerShutdownHandlers() {
  * until app is actually ready. Prevents cascading failures during
  * rolling deployments.
  */
+const db = require('./config/db');
+
 async function verifyDependencies() {
   const checkTimeout = 5000; // 5s timeout per check
 
@@ -359,6 +361,7 @@ async function verifyDependencies() {
   try {
     logger.info('[startup] Verifying Redis connectivity...');
     const redis = require('./config/redis').redis;
+
     if (redis) {
       await Promise.race([
         redis.ping(),
@@ -371,8 +374,9 @@ async function verifyDependencies() {
       logger.warn('[startup] Redis: Not initialized (optional)');
     }
   } catch (err) {
-    logger.error({ err: err.message }, '[startup] Redis: FAILED');
-    throw new Error(`Redis unreachable: ${err.message}`);
+    // Redis is required for some features, but health endpoints should still be reachable.
+    // Non-fatal: we allow the server to start and individual services will degrade.
+    logger.warn({ err: err.message }, '[startup] Redis: FAILED (non-fatal)');
   }
 }
 

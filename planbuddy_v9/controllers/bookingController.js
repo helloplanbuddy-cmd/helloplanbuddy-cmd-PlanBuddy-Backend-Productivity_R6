@@ -161,8 +161,7 @@ exports.cancelBooking = async (req, res, next) => {
          SET status = 'cancellation_pending',
              updated_at = NOW()
          WHERE id = $1
-           AND status = 'confirmed'
-           AND payment_status = 'paid'
+           AND status = 'confirmed'           AND payment_status = 'paid'
          RETURNING id`,
         [bookingId]
       );
@@ -233,7 +232,7 @@ exports.cancelBooking = async (req, res, next) => {
       }
     }
 
-    const idempotencyKey = req.headers['idempotency-key'] || crypto.randomUUID();
+    const idempotencyKey = req.headers['idempotency-key'];
 
     const booking = await DbService.cancelBooking(
       bookingId,

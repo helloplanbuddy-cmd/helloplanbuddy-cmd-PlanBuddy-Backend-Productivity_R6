@@ -40,6 +40,9 @@
 const Redis = require('ioredis');
 const env   = require('./env');
 
+// ─── PHASE 3 WIRING: Queue Reliability State (Step 1 — Redis event hooks) ─────
+const reliabilityState = require('../utils/queueReliabilityState');
+
 // ─── Resilience tuning (override via env for load-testing) ────────────────────
 
 const MAX_RECONNECT_ATTEMPTS    = parseInt(env.REDIS_MAX_RECONNECT_ATTEMPTS, 10)  || 20;
@@ -148,6 +151,10 @@ function createClient(url, name, { isQueue = false } = {}) {
 
   client.on('connect', () => {
     recordAttempt(name, true);
+    // PHASE 3: Update queue reliability state (Step 1 — Redis connected)
+    if (name === 'queue') {
+      reliabilityState.markRedisConnected();
+    }
     logger.info(`[redis:${name}] Connected`);
   });
 
@@ -157,10 +164,18 @@ function createClient(url, name, { isQueue = false } = {}) {
 
   client.on('error', (err) => {
     // Log but do not crash — app degrades gracefully without Redis
+    // PHASE 3: Update queue reliability state (Step 1 — Redis error)
+    if (name === 'queue') {
+      reliabilityState.markRedisDisconnected(err.message);
+    }
     logger.error({ err: err.message, code: err.code }, `[redis:${name}] Connection error`);
   });
 
   client.on('close', () => {
+    // PHASE 3: Update queue reliability state (Step 1 — Redis closed)
+    if (name === 'queue') {
+      reliabilityState.markRedisDisconnected('client_close');
+    }
     logger.warn(`[redis:${name}] Connection closed`);
   });
 

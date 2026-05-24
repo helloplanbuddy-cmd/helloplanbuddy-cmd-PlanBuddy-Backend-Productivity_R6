@@ -271,3 +271,9 @@ describe('Exactly-Once Refund Guarantee (Unit Tests)', () => {
     });
   });
 });
+
+afterAll(async () => {
+  if (mockDb && typeof mockDb.end === 'function') {
+    await mockDb.end();
+  }
+});

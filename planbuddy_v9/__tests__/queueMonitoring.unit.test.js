@@ -14,8 +14,6 @@
  *   6. Job completion tracking
  */
 
-const { describe, it, before, after } = require('mocha');
-const { expect } = require('chai');
 const queueMonitoring = require('../utils/queueMonitoring');
 
 describe('Queue Monitoring & Backlog Visibility [RISK-008]', () => {
@@ -36,26 +34,26 @@ describe('Queue Monitoring & Backlog Visibility [RISK-008]', () => {
       const queue = createMockQueue('payment-processing', 50, 5, 3, 1);
       const stats = await queueMonitoring.getQueueStats(queue);
 
-      expect(stats).to.exist;
-      expect(stats.name).to.equal('payment-processing');
-      expect(stats.pending).to.equal(50);
-      expect(stats.active).to.equal(5);
-      expect(stats.delayed).to.equal(3);
-      expect(stats.failed).to.equal(1);
-      expect(stats.total_depth).to.equal(50 + 5 + 3);  // pending + active + delayed
+      expect(stats).toBeDefined();
+      expect(stats.name).toEqual('payment-processing');
+      expect(stats.pending).toEqual(50);
+      expect(stats.active).toEqual(5);
+      expect(stats.delayed).toEqual(3);
+      expect(stats.failed).toEqual(1);
+      expect(stats.total_depth).toEqual(50 + 5 + 3);  // pending + active + delayed
     });
 
     it('should handle queue with no jobs', async () => {
       const queue = createMockQueue('webhook-relay', 0, 0, 0, 0);
       const stats = await queueMonitoring.getQueueStats(queue);
 
-      expect(stats.pending).to.equal(0);
-      expect(stats.total_depth).to.equal(0);
+      expect(stats.pending).toEqual(0);
+      expect(stats.total_depth).toEqual(0);
     });
 
     it('should return null if queue is null', async () => {
       const stats = await queueMonitoring.getQueueStats(null);
-      expect(stats).to.be.null;
+      expect(stats).toBeNull();
     });
 
     it('should calculate total_depth correctly', async () => {
@@ -63,7 +61,7 @@ describe('Queue Monitoring & Backlog Visibility [RISK-008]', () => {
       const stats = await queueMonitoring.getQueueStats(queue);
 
       // total_depth = pending + active + delayed (not failed)
-      expect(stats.total_depth).to.equal(130);
+      expect(stats.total_depth).toEqual(130);
     });
   });
 
@@ -79,10 +77,10 @@ describe('Queue Monitoring & Backlog Visibility [RISK-008]', () => {
 
       const allStats = await queueMonitoring.getAllQueueStats(queues);
 
-      expect(Object.keys(allStats)).to.have.lengthOf(3);
-      expect(allStats.payments.pending).to.equal(50);
-      expect(allStats.webhooks.pending).to.equal(20);
-      expect(allStats.reconciliation.pending).to.equal(5);
+      expect(Object.keys(allStats)).toHaveLength(3);
+      expect(allStats.payments.pending).toEqual(50);
+      expect(allStats.webhooks.pending).toEqual(20);
+      expect(allStats.reconciliation.pending).toEqual(5);
     });
 
     it('should aggregate total backlog', async () => {
@@ -95,7 +93,7 @@ describe('Queue Monitoring & Backlog Visibility [RISK-008]', () => {
       const allStats = await queueMonitoring.getAllQueueStats(queues);
       const totalPending = Object.values(allStats).reduce((sum, q) => sum + q.pending, 0);
 
-      expect(totalPending).to.equal(80);
+      expect(totalPending).toEqual(80);
     });
   });
 
@@ -109,8 +107,8 @@ describe('Queue Monitoring & Backlog Visibility [RISK-008]', () => {
 
       const health = await queueMonitoring.getQueueHealth(queues);
 
-      expect(health.healthy).to.be.true;
-      expect(health.totalBacklog).to.equal(50);
+      expect(health.healthy).toBe(true);
+      expect(health.totalBacklog).toEqual(50);
     });
 
     it('should report degraded status when exceeds critical threshold', async () => {
@@ -120,8 +118,8 @@ describe('Queue Monitoring & Backlog Visibility [RISK-008]', () => {
 
       const health = await queueMonitoring.getQueueHealth(queues);
 
-      expect(health.healthy).to.be.false;
-      expect(health.totalBacklog).to.equal(2000);
+      expect(health.healthy).toBe(false);
+      expect(health.totalBacklog).toEqual(2000);
     });
 
     it('should identify worst queue (highest depth)', async () => {
@@ -133,13 +131,13 @@ describe('Queue Monitoring & Backlog Visibility [RISK-008]', () => {
 
       const health = await queueMonitoring.getQueueHealth(queues);
 
-      expect(health.worstQueue).to.equal('large');
-      expect(health.worstDepth).to.equal(500);
+      expect(health.worstQueue).toEqual('large');
+      expect(health.worstDepth).toEqual(500);
     });
 
     it('should have appropriate warn/critical thresholds', () => {
-      expect(queueMonitoring.QUEUE_DEPTH_WARN_THRESHOLD).to.equal(100);
-      expect(queueMonitoring.QUEUE_DEPTH_CRITICAL_THRESHOLD).to.equal(1000);
+      expect(queueMonitoring.QUEUE_DEPTH_WARN_THRESHOLD).toEqual(100);
+      expect(queueMonitoring.QUEUE_DEPTH_CRITICAL_THRESHOLD).toEqual(1000);
     });
   });
 
@@ -150,19 +148,19 @@ describe('Queue Monitoring & Backlog Visibility [RISK-008]', () => {
       // Verify function doesn't throw
       expect(() => {
         queueMonitoring.recordJobCompletion('payment-processing', 1500, true);
-      }).to.not.throw();
+      }).not.toThrow();
     });
 
     it('should record failed jobs', () => {
       expect(() => {
         queueMonitoring.recordJobCompletion('payment-processing', 500, false);
-      }).to.not.throw();
+      }).not.toThrow();
     });
 
     it('should handle slow job detection', () => {
       expect(() => {
         queueMonitoring.recordJobCompletion('webhook-relay', 35000, true);  // > 30s warning
-      }).to.not.throw();
+      }).not.toThrow();
     });
   });
 
@@ -177,27 +175,27 @@ describe('Queue Monitoring & Backlog Visibility [RISK-008]', () => {
       const health = await queueMonitoring.getQueueHealth(queues);
 
       // Verify response structure for health controller integration
-      expect(health).to.have.keys([
+      expect(Object.keys(health)).toEqual(expect.arrayContaining([
         'healthy',
         'totalBacklog',
         'worstQueue',
         'worstDepth',
         'healthy_summary',
-      ]);
+      ]));
 
-      expect(health.healthy).to.be.a('boolean');
-      expect(health.totalBacklog).to.be.a('number');
-      expect(health.worstQueue).to.be.a('string');
-      expect(health.worstDepth).to.be.a('number');
-      expect(health.healthy_summary).to.be.a('string');
+      expect(health.healthy).toEqual(expect.any(Boolean));
+      expect(health.totalBacklog).toEqual(expect.any(Number));
+      expect(health.worstQueue).toEqual(expect.any(String));
+      expect(health.worstDepth).toEqual(expect.any(Number));
+      expect(health.healthy_summary).toEqual(expect.any(String));
     });
 
     it('should provide fallback when monitoring fails', async () => {
       const health = await queueMonitoring.getQueueHealth({});
 
       // When no queues, should still return valid response
-      expect(health.healthy).to.be.true;  // fail-open
-      expect(health.totalBacklog).to.equal(0);
+      expect(health.healthy).toBe(true);  // fail-open
+      expect(health.totalBacklog).toEqual(0);
     });
   });
 
@@ -205,23 +203,23 @@ describe('Queue Monitoring & Backlog Visibility [RISK-008]', () => {
 
   describe('6. Prometheus Metrics Export', () => {
     it('should expose queue depth gauge', () => {
-      expect(queueMonitoring.queueDepthGauge).to.exist;
+      expect(queueMonitoring.queueDepthGauge).toBeDefined();
     });
 
     it('should expose active jobs gauge', () => {
-      expect(queueMonitoring.activeJobsGauge).to.exist;
+      expect(queueMonitoring.activeJobsGauge).toBeDefined();
     });
 
     it('should expose failed jobs counter', () => {
-      expect(queueMonitoring.failedJobsCounter).to.exist;
+      expect(queueMonitoring.failedJobsCounter).toBeDefined();
     });
 
     it('should expose processing time histogram', () => {
-      expect(queueMonitoring.processingTimeHistogram).to.exist;
+      expect(queueMonitoring.processingTimeHistogram).toBeDefined();
     });
 
     it('should support register method for Prometheus integration', () => {
-      expect(typeof queueMonitoring.registerMetrics).to.equal('function');
+      expect(typeof queueMonitoring.registerMetrics).toEqual('function');
     });
   });
 
@@ -235,8 +233,8 @@ describe('Queue Monitoring & Backlog Visibility [RISK-008]', () => {
 
       const health = await queueMonitoring.getQueueHealth(queues);
 
-      expect(health.healthy).to.be.false;  // 1500 > 1000 threshold
-      expect(health.totalBacklog).to.equal(1500);
+      expect(health.healthy).toBe(false);  // 1500 > 1000 threshold
+      expect(health.totalBacklog).toEqual(1500);
     });
 
     it('should recover when queue drains', async () => {
@@ -245,14 +243,14 @@ describe('Queue Monitoring & Backlog Visibility [RISK-008]', () => {
         payments: createMockQueue('payments', 2000, 50, 100, 0),
       };
       let health = await queueMonitoring.getQueueHealth(queues);
-      expect(health.healthy).to.be.false;
+      expect(health.healthy).toBe(false);
 
       // Then: drained
       queues = {
         payments: createMockQueue('payments', 50, 5, 2, 0),
       };
       health = await queueMonitoring.getQueueHealth(queues);
-      expect(health.healthy).to.be.true;
+      expect(health.healthy).toBe(true);
     });
 
     it('should handle multi-queue backlog aggregation', async () => {
@@ -265,8 +263,8 @@ describe('Queue Monitoring & Backlog Visibility [RISK-008]', () => {
 
       // Both queues are under critical individually
       // But combined = 1100, which exceeds 1000
-      expect(health.healthy).to.be.false;
-      expect(health.totalBacklog).to.equal(1100);
+      expect(health.healthy).toBe(false);
+      expect(health.totalBacklog).toEqual(1100);
     });
   });
 
@@ -275,8 +273,8 @@ describe('Queue Monitoring & Backlog Visibility [RISK-008]', () => {
   describe('8. Edge Cases', () => {
     it('should handle empty queue object', async () => {
       const health = await queueMonitoring.getQueueHealth({});
-      expect(health.healthy).to.be.true;
-      expect(health.totalBacklog).to.equal(0);
+      expect(health.healthy).toBe(true);
+      expect(health.totalBacklog).toEqual(0);
     });
 
     it('should handle queue with missing count methods', async () => {
@@ -286,7 +284,7 @@ describe('Queue Monitoring & Backlog Visibility [RISK-008]', () => {
       };
 
       const stats = await queueMonitoring.getQueueStats(queue);
-      expect(stats).to.exist;  // Should not crash
+      expect(stats).toBeDefined();  // Should not crash
     });
 
     it('should safely fail if queue throws error', async () => {
@@ -296,7 +294,7 @@ describe('Queue Monitoring & Backlog Visibility [RISK-008]', () => {
       };
 
       const stats = await queueMonitoring.getQueueStats(queue);
-      expect(stats).to.be.null;  // Should return null on error
+      expect(stats).toBeNull();  // Should return null on error
     });
   });
 });

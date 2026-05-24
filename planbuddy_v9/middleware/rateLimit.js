@@ -145,15 +145,19 @@ function isRedisReady() {
  * We check both req.path and req.originalUrl to handle both mounted and
  * root-mounted limiters correctly.
  */
-function isHealthPath(req) {
+function isBypassPath(req) {
   const p = req.path;
   const o = req.originalUrl?.split('?')[0] ?? '';
   return (
     p === '/health' ||
     p === '/api/health' ||
+    p === '/internal' ||
+    p === '/metrics' ||
     p === '/' ||
     o === '/health' ||
-    o === '/api/health'
+    o === '/api/health' ||
+    o === '/internal' ||
+    o === '/metrics'
   );
 }
 
@@ -259,9 +263,9 @@ function makeLimiter({
     handler(req, res) {
       return onLimitExceeded(req, res, windowMs, name);
     },
-    // FIX-1: use isHealthPath() — correctly handles both mounted and root contexts
+    // FIX-1: use isBypassPath() — correctly handles both mounted and root contexts
     skip(req) {
-      if (isHealthPath(req)) return true;
+      if (isBypassPath(req)) return true;
       if (extraSkip && extraSkip(req)) return true;
       return false;
     },
@@ -274,8 +278,8 @@ function makeLimiter({
   // ── Fail-closed wrapper ────────────────────────────────────────────────────
   // For auth/payment/webhook: Redis down → 503 (no brute-force bypass).
   return function failClosedMiddleware(req, res, next) {
-    // FIX-1: same isHealthPath() guard (was broken in v4.0)
-    if (isHealthPath(req)) {
+    // FIX-1: same isBypassPath() guard (was broken in v4.0)
+    if (isBypassPath(req)) {
       return next();
     }
 

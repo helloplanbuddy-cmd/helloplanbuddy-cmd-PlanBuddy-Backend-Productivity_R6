@@ -167,11 +167,10 @@ app.use(cors({
 }));
 
 // ─── Raw body for Razorpay webhook (MUST come before express.json) ────────────
-// Both versioned and legacy paths registered — webhookLimiter is applied on
-// these routes inside routes/payment.js (after route-level auth/validation).
-// globalLimiter skips these paths via isWebhookPath() in rateLimit.js (FIX-1).
+// Only the canonical versioned path is registered in app.js.
+// route-level webhookLimiter is applied in routes/index.js,
+// and globalLimiter skips these paths via isWebhookPath() in rateLimit.js.
 app.use('/api/v1/payment/webhook/razorpay', express.raw({ type: 'application/json', limit: '100kb' }));
-app.use('/api/payment/webhook/razorpay',    express.raw({ type: 'application/json', limit: '100kb' }));
 
 // ─── JSON / URL-encoded body parsers ─────────────────────────────────────────
 app.use(express.json({ limit: '512kb' }));
@@ -234,13 +233,11 @@ app.use((req, res, next) => {
 // ─── API Routes — versioned (canonical) ──────────────────────────────────────
 app.use('/api/v1', apiVersion('v1'), routes);
 
-// ─── API Routes — legacy (backward compat) ───────────────────────────────────
-// NOTE: This mounts every route twice. Schedule a sunset date to remove this
-// mount. Without a sunset date, every route is registered twice indefinitely.
-// Double-mounting also means each request hits globalLimiter once (at /api)
-// but route-level limiters (authLimiter, webhookLimiter) fire once per route
-// registration — verify no route has conflicting limiter configs across versions.
-app.use('/api', apiVersion('legacy'), routes);
+// ─── Legacy API mount removed ───────────────────────────────────────────────
+// Legacy /api compatibility was intentionally removed to avoid duplicate route
+// registration, duplicate middleware execution, and doubled rate-limit state.
+// If backward compatibility is required again, reintroduce a dedicated legacy
+// router instead of reusing the canonical route definitions.
 
 // ─── Internal observability routes (IP-guarded, NOT under /api/v1) ───────────
 app.use('/internal', internalRoutes);
