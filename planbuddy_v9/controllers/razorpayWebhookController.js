@@ -287,6 +287,21 @@ async function applyPaymentEvent(client, { eventType, paymentId, eventId }) {
     return;
   }
 
+  // ── SECURITY FIX C-1: Row-level locking prevents concurrent updates ────────────
+  // Acquire an advisory lock on this payment to prevent simultaneous state transitions
+  // from multiple webhook events. Lock is scoped to transaction + connection.
+  const lockResult = await client.query(
+    `SELECT id FROM payments
+      WHERE razorpay_payment_id = $1
+      FOR UPDATE`,
+    [paymentId]
+  );
+
+  if (lockResult.rows.length === 0) {
+    logger.warn({ eventId, eventType, paymentId }, '[webhook-processor] Payment not found for webhook event');
+    return;
+  }
+
   if (eventType === 'payment.captured' || eventType === 'payment.authorized') {
     await client.query(
       `UPDATE payments
@@ -330,6 +345,22 @@ async function applyRefundEvent(client, { eventType, payload, refundId, eventId 
   }
 
   const paymentId = payload?.payload?.payment?.entity?.id || null;
+
+  // ── SECURITY FIX C-1: Row-level locking prevents concurrent refund updates ─────
+  // Acquire lock on payment before updating refund status
+  if (paymentId) {
+    const lockResult = await client.query(
+      `SELECT id FROM payments
+        WHERE razorpay_payment_id = $1
+        FOR UPDATE`,
+      [paymentId]
+    );
+
+    if (lockResult.rows.length === 0) {
+      logger.warn({ eventId, eventType, refundId, paymentId }, '[webhook-processor] Payment not found for refund event');
+      return;
+    }
+  }
 
   if (eventType === 'refund.processed' || eventType === 'refund.paid') {
     await client.query(
