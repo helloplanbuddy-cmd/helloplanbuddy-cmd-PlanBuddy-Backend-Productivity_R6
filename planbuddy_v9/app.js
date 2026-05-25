@@ -167,6 +167,13 @@ app.use(cors({
   maxAge:         600,
 }));
 
+// ─── CSRF Protection (SPA-only architecture) ─────────────────────────────────────
+// Security Fix C-3: Validate X-Requested-With header on state-changing requests
+// This header is set by SPA frameworks (XMLHttpRequest / fetch) but cannot be set
+// by browser form submissions, making it an effective CSRF protection for SPA-only APIs.
+const csrfProtection = require('./middleware/csrfProtection');
+app.use(csrfProtection);
+
 // ─── Raw body for Razorpay webhook (MUST come before express.json) ────────────
 // Only the canonical versioned path is registered in app.js.
 // route-level webhookLimiter is applied in routes/index.js,

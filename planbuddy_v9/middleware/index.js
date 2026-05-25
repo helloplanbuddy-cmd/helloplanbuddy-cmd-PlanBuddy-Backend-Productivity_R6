@@ -277,4 +277,5 @@ module.exports = {
   requireRole,
   invalidateUserActiveCache,
   proxyValidation: require('./proxyValidation'),
+  csrfProtection: require('./csrfProtection'),
 };
