@@ -4,6 +4,30 @@ const express = require('express');
 const { z } = require('zod');
 const router = express.Router();
 
+/**
+ * FINANCIAL ENDPOINTS REGISTRY [M-1]
+ *
+ * All POST/PUT/DELETE endpoints that mutate payment or booking state MUST use
+ * idempotency.strict middleware to prevent duplicate processing.
+ *
+ * ENFORCED ENDPOINTS (idempotency.strict required):
+ *  ✅ POST   /payment/create-order              → Create Razorpay order
+ *  ✅ POST   /payment/verify                    → Capture payment
+ *  ✅ POST   /admin/payments/:id/reconcile      → Manual payment reconciliation
+ *  ✅ POST   /bookings/:bookingId/cancel        → Cancel booking + refund
+ *
+ * READ-ONLY ENDPOINTS (idempotency not required):
+ *  ○ GET    /bookings                          → List user bookings
+ *  ○ GET    /bookings/:bookingId               → Get booking details
+ *  ○ GET    /payment/status/:paymentId         → Get payment status
+ *  ○ GET    /admin/bookings                    → Admin: list all bookings
+ *
+ * WEBHOOK ENDPOINTS (special deduplication):
+ *  ○ POST   /payment/webhook/razorpay          → Uses provider_event_id + ON CONFLICT
+ *
+ * Audit: See __tests__/security/idempotency-enforcement-audit.test.js
+ */
+
 // Temporary sanity routes for startup
 // Avoid crashing app startup if coreController is not wired in this branch.
 // This ping is not used by production clients.
