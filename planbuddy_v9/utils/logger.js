@@ -1,21 +1,10 @@
 'use strict';
 
-/**
- * utils/logger.js — Structured Logging with Pino (v1.0)
- *
- * Provides production-grade structured logging with:
- *   • JSON output (parseable by log aggregators)
- *   • Pretty-printing in development
- *   • Configurable log level from env.LOG_LEVEL
- *   • Request correlation support
- *   • Startup/shutdown logging
- */
-
+const { AsyncLocalStorage } = require('async_hooks');
 const pino = require('pino');
 
 // Lazy load env to avoid circular dependencies at module load time
 let env = null;
-
 function getEnv() {
   if (!env) {
     env = require('../config/env');
@@ -23,12 +12,15 @@ function getEnv() {
   return env;
 }
 
-const logger = pino({
-  // Use a getter for level to defer env loading
+const requestContext = new AsyncLocalStorage();
+function getBindings() {
+  return requestContext.getStore() || {};
+}
+
+const baseLogger = pino({
   get level() {
     return getEnv().LOG_LEVEL || 'info';
   },
-  // Pretty printing only in development
   transport: getEnv().IS_DEV ? {
     target: 'pino-pretty',
     options: {
@@ -37,6 +29,33 @@ const logger = pino({
       ignore: 'pid,hostname',
     },
   } : undefined,
+});
+
+function setBindings(fields) {
+  const current = getBindings();
+  requestContext.enterWith({ ...current, ...fields });
+}
+
+function getLogger() {
+  const bindings = getBindings();
+  if (Object.keys(bindings).length === 0) {
+    return baseLogger;
+  }
+  return baseLogger.child(bindings);
+}
+
+const logger = new Proxy(baseLogger, {
+  get(target, prop) {
+    if (prop === 'setBindings') return setBindings;
+    if (prop === 'getLogger') return getLogger;
+
+    const currentLogger = getLogger();
+    const value = currentLogger[prop];
+    if (typeof value === 'function') {
+      return value.bind(currentLogger);
+    }
+    return value;
+  },
 });
 
 module.exports = logger;

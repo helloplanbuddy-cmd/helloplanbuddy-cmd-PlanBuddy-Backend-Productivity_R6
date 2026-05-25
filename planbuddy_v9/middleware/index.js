@@ -72,8 +72,8 @@ async function isUserActive(userId) {
 
     return Boolean(is_active);
   } catch (err) {
-    logger.error({ err }, '[auth] isUserActive: DB query failed — fail-open');
-    return true; // fail-open: don't lock out users on DB error
+    logger.error({ err }, '[auth] isUserActive: DB query failed — fail-closed');
+    return false; // fail-closed: deny access when user status cannot be verified
   }
 }
 

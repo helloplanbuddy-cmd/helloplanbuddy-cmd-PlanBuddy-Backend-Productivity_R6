@@ -1,0 +1,85 @@
+﻿Γùç injected env (21) from .env // tip: Γîÿ enable debugging { debug: true }
+[db] Pool sizing: DB_POOL_MAX=10 ├ù PM2_INSTANCES=1 = 10 total connections (PG max_connections=100, 80% limit=80)
+LAYER  query ^\/?(?=\/|$)
+LAYER  expressInit ^\/?(?=\/|$)
+LAYER  <anonymous> ^\/?(?=\/|$)
+LAYER  <anonymous> ^\/?(?=\/|$)
+LAYER  <anonymous> ^\/?(?=\/|$)
+LAYER  traceIdMiddleware ^\/?(?=\/|$)
+LAYER  corsMiddleware ^\/?(?=\/|$)
+LAYER  rawParser ^\/api\/v1\/payment\/webhook\/razorpay\/?(?=\/|$)
+LAYER  jsonParser ^\/?(?=\/|$)
+LAYER  urlencodedParser ^\/?(?=\/|$)
+LAYER  globalLimiter ^\/api\/?(?=\/|$)
+LAYER  backpressureMiddleware ^\/?(?=\/|$)
+ROUTE /metrics get [ '<anonymous>' ]
+ROUTE /health/live get [ '<anonymous>' ]
+ROUTE /health/ready get [ '<anonymous>' ]
+ROUTE /health get [ '<anonymous>' ]
+ROUTE /health/production get [ '<anonymous>' ]
+LAYER  <anonymous> ^\/?(?=\/|$)
+LAYER  <anonymous> ^\/api\/v1\/?(?=\/|$)
+LAYER  router ^\/api\/v1\/?(?=\/|$)
+ROUTE /ping get [ '<anonymous>' ]
+ROUTE /status get [ '<anonymous>' ]
+LAYER  router ^\/auth\/?(?=\/|$)
+ROUTE /register post [ 'auth', '<anonymous>', '<anonymous>' ]
+ROUTE /login post [ 'auth', '<anonymous>', '<anonymous>' ]
+ROUTE /refresh post [ 'auth', '<anonymous>', '<anonymous>' ]
+ROUTE /logout post [ '<anonymous>', '<anonymous>' ]
+ROUTE /me get [ '<anonymous>' ]
+ROUTE /bookings get [ 'authenticate', '<anonymous>', '<anonymous>' ]
+ROUTE /bookings/:bookingId get [ 'authenticate', '<anonymous>', '<anonymous>' ]
+ROUTE /bookings/:bookingId/cancel post [ 'authenticate', '<anonymous>', 'idempotencyStrict', '<anonymous>' ]
+ROUTE /admin/bookings get [ 'authenticate', 'requireRole(admin)', '<anonymous>', '<anonymous>' ]
+ROUTE /payment/create-order post [ 'authenticate', '<anonymous>', 'idempotencyStrict', '<anonymous>' ]
+ROUTE /payment/verify post [ 'authenticate', '<anonymous>', 'idempotencyStrict', '<anonymous>' ]
+ROUTE /payment/status/:paymentId get [ 'authenticate', '<anonymous>', '<anonymous>' ]
+ROUTE /admin/payments/:paymentId/reconcile post [
+  'authenticate',
+  'requireRole(admin)',
+  '<anonymous>',
+  'idempotencyStrict',
+  '<anonymous>'
+]
+ROUTE /payment/webhook/razorpay post [ 'webhook', '<anonymous>' ]
+ROUTE /trips/:tripId/availability get [ '<anonymous>', '<anonymous>' ]
+ROUTE /trips/:tripId/slots get [ '<anonymous>', '<anonymous>' ]
+LAYER  internalIpGuard ^\/internal\/?(?=\/|$)
+LAYER  router ^\/internal\/?(?=\/|$)
+ROUTE /health/live get [ '<anonymous>' ]
+ROUTE /health/ready get [ '<anonymous>' ]
+ROUTE /health/readiness get [ '<anonymous>' ]
+ROUTE /health/detailed get [ '<anonymous>' ]
+ROUTE /health/production get [ '<anonymous>' ]
+ROUTE /health/check-integrity post [ '<anonymous>' ]
+ROUTE /metrics/queues get [ '<anonymous>' ]
+ROUTE /metrics get [ '<anonymous>' ]
+ROUTE / get [ '<anonymous>' ]
+ROUTE /health get [ '<anonymous>' ]
+ROUTE /health/live get [ '<anonymous>' ]
+ROUTE /health/ready get [ '<anonymous>' ]
+LAYER  <anonymous> ^\/?(?=\/|$)
+LAYER  errorHandler ^\/?(?=\/|$)
+[2026-05-25 01:11:24.732 +0530] [31mERROR[39m: [36m[rateLimit] WARN: Could not create RedisStore ΓÇö non-critical limiters will use MemoryStore[39m
+    [35mservice[39m: "rateLimit"
+    err: "Rate limit Redis not ready (status=connecting)"
+[2026-05-25 01:11:24.738 +0530] [31mERROR[39m: [36m[rateLimit] WARN: Could not create RedisStore ΓÇö non-critical limiters will use MemoryStore[39m
+    [35mservice[39m: "rateLimit"
+    err: "Rate limit Redis not ready (status=connecting)"
+[2026-05-25 01:11:24.738 +0530] [31mERROR[39m: [36m[rateLimit] WARN: Could not create RedisStore ΓÇö non-critical limiters will use MemoryStore[39m
+    [35mservice[39m: "rateLimit"
+    err: "Rate limit Redis not ready (status=connecting)"
+[2026-05-25 01:11:24.739 +0530] [31mERROR[39m: [36m[rateLimit] WARN: Could not create RedisStore ΓÇö non-critical limiters will use MemoryStore[39m
+    [35mservice[39m: "rateLimit"
+    err: "Rate limit Redis not ready (status=connecting)"
+[2026-05-25 01:11:24.740 +0530] [31mERROR[39m: [36m[rateLimit] WARN: Could not create RedisStore ΓÇö non-critical limiters will use MemoryStore[39m
+    [35mservice[39m: "rateLimit"
+    err: "Rate limit Redis not ready (status=connecting)"
+[2026-05-25 01:11:24.741 +0530] [31mERROR[39m: [36m[rateLimit] WARN: Could not create RedisStore ΓÇö non-critical limiters will use MemoryStore[39m
+    [35mservice[39m: "rateLimit"
+    err: "Rate limit Redis not ready (status=connecting)"
+[2026-05-25 01:11:24.741 +0530] [31mERROR[39m: [36m[rateLimit] WARN: Could not create RedisStore ΓÇö non-critical limiters will use MemoryStore[39m
+    [35mservice[39m: "rateLimit"
+    err: "Rate limit Redis not ready (status=connecting)"
+

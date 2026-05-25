@@ -1,6 +1,7 @@
 'use strict';
 
 const express = require('express');
+const { z } = require('zod');
 const router = express.Router();
 
 // Temporary sanity routes for startup
@@ -10,44 +11,67 @@ router.get('/ping', (req, res) => {
   res.json({ ok: true, service: 'planbuddy', ts: Date.now() });
 });
 
-
 router.get('/status', (req, res) => {
   res.json({ status: 'api ready' });
 });
 
-// Health endpoints
-const healthController = require('../controllers/healthController');
-router.get('/health/live', healthController.live);
-router.get('/health/ready', healthController.ready);
-router.get('/health', healthController.readiness);
-router.get('/health/production', healthController.production);
-
-
 // ─── Booking controller routes ────────────────────────────────────────────
 const bookingController = require('../controllers/bookingController');
 const paymentController = require('../controllers/paymentController');
+const authRoutes = require('./auth');
 const { authenticate, requireRole } = require('../middleware');
 const { webhookLimiter } = require('../middleware/rateLimit');
 const idempotency = require('../middleware/idempotency');
+const {
+  validate,
+  validateAll,
+  CreateOrderSchema,
+  VerifyPaymentSchema,
+  GetBookingsSchema,
+  CancelBookingSchema,
+  AdminBookingsSchema,
+} = require('../middleware/validation');
 
+const RouteBookingIdSchema = z.object({ bookingId: z.string().uuid('Invalid booking ID') });
+const RoutePaymentIdSchema = z.object({ paymentId: z.string().uuid('Invalid payment ID') });
+const RouteTripIdSchema = z.object({ tripId: z.string().uuid('Invalid trip ID') });
 
 // GET /bookings — list user bookings
-router.get('/bookings', authenticate, bookingController.getUserBookings);
+router.use('/auth', authRoutes);
+
+router.get(
+  '/bookings',
+  authenticate,
+  validateAll({ query: GetBookingsSchema }),
+  bookingController.getUserBookings
+);
 
 // GET /bookings/:bookingId — get single booking
-router.get('/bookings/:bookingId', authenticate, bookingController.getBooking);
+router.get(
+  '/bookings/:bookingId',
+  authenticate,
+  validateAll({ params: RouteBookingIdSchema }),
+  bookingController.getBooking
+);
 
 // POST /bookings/:bookingId/cancel — cancel booking with refund
 // ✅ IDEMPOTENCY ENFORCEMENT: Idempotency-Key header REQUIRED
 router.post(
   '/bookings/:bookingId/cancel',
   authenticate,
-  idempotency.strict,  // ✅ Enforce Idempotency-Key header
+  validateAll({ params: RouteBookingIdSchema, body: CancelBookingSchema }),
+  idempotency.strict,
   bookingController.cancelBooking
 );
 
 // GET /admin/bookings — admin only
-router.get('/admin/bookings', authenticate, requireRole('admin'), bookingController.getAllBookings);
+router.get(
+  '/admin/bookings',
+  authenticate,
+  requireRole('admin'),
+  validateAll({ query: AdminBookingsSchema }),
+  bookingController.getAllBookings
+);
 
 // ─── Payment controller routes ─────────────────────────────────────────────
 
@@ -56,7 +80,8 @@ router.get('/admin/bookings', authenticate, requireRole('admin'), bookingControl
 router.post(
   '/payment/create-order',
   authenticate,
-  idempotency.strict,  // ✅ Enforce Idempotency-Key header
+  validate(CreateOrderSchema),
+  idempotency.strict,
   paymentController.createOrder
 );
 
@@ -65,7 +90,8 @@ router.post(
 router.post(
   '/payment/verify',
   authenticate,
-  idempotency.strict,  // ✅ Enforce Idempotency-Key header
+  validate(VerifyPaymentSchema),
+  idempotency.strict,
   paymentController.verifyPayment
 );
 
@@ -73,6 +99,7 @@ router.post(
 router.get(
   '/payment/status/:paymentId',
   authenticate,
+  validateAll({ params: RoutePaymentIdSchema }),
   paymentController.getPaymentStatus
 );
 
@@ -82,7 +109,8 @@ router.post(
   '/admin/payments/:paymentId/reconcile',
   authenticate,
   requireRole('admin'),
-  idempotency.strict,  // ✅ Enforce Idempotency-Key header
+  validateAll({ params: RoutePaymentIdSchema }),
+  idempotency.strict,
   paymentController.manualReconcile
 );
 
@@ -90,7 +118,15 @@ router.post(
 router.post('/payment/webhook/razorpay', webhookLimiter, paymentController.razorpayWebhook);
 
 // Check availability
-router.get('/trips/:tripId/availability', bookingController.checkAvailability);
-router.get('/trips/:tripId/slots', bookingController.getAvailableSlots);
+router.get(
+  '/trips/:tripId/availability',
+  validateAll({ params: RouteTripIdSchema }),
+  bookingController.checkAvailability
+);
+router.get(
+  '/trips/:tripId/slots',
+  validateAll({ params: RouteTripIdSchema }),
+  bookingController.getAvailableSlots
+);
 
 module.exports = router;

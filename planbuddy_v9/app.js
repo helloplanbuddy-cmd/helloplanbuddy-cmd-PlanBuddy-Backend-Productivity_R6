@@ -208,12 +208,6 @@ app.get('/health/ready', healthController.ready);
 app.get('/health', healthController.readiness);
 app.get('/health/production', healthController.production);
 
-// ─── Production health cron ───────────────────────────────────────────────────
-// IMPORTANT: this cron populates DLQ depth and integrity mismatch metrics.
-// Without it, Prometheus alerts fire on hardcoded zeros forever.
-const productionHealth = require('./services/productionHealth');
-productionHealth.startCron();
-
 // ─── Structured Pino request logging ─────────────────────────────────────────
 app.use((req, res, next) => {
   const start = Date.now();
@@ -261,7 +255,6 @@ app.get('/', (req, res) => {
 });
 
 // ─── Health checks (unversioned, not rate-limited, not load-shed) ─────────────
-const healthController = require('./controllers/healthController');
 app.get('/health',       healthController.readiness);
 app.get('/health/live',  healthController.live);
 app.get('/health/ready', healthController.ready);

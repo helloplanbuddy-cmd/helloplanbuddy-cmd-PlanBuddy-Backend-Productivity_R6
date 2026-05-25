@@ -62,6 +62,7 @@ function generateToken(payload) {
   const token = jwt.sign(tokenPayload, getJwtSecret(), {
     ...getJwtOptions(),
     jwtid: jti,
+    algorithm: 'HS256',
   });
 
   return { token, jti };
@@ -69,7 +70,7 @@ function generateToken(payload) {
 
 function verifyToken(token) {
   if (!token) throw new Error('verifyToken: token missing');
-  return jwt.verify(token, getJwtSecret());
+  return jwt.verify(token, getJwtSecret(), { algorithms: ['HS256'] });
 }
 
 function getBlacklistCacheKey(jti) {

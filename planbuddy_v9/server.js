@@ -314,16 +314,17 @@ function registerShutdownHandlers() {
 
   // Unhandled rejection handler
   process.on('unhandledRejection', (reason, promise) => {
-    logger.error(
+    logger.fatal(
       { reason, promise: String(promise), pid: process.pid },
-      '[startup] Unhandled rejection detected'
+      '[startup] Unhandled rejection detected — exiting'
     );
+    setTimeout(() => process.exit(1), 100);
   });
 
   // Uncaught exception handler
   process.on('uncaughtException', (err) => {
     logger.fatal({ err, message: err.message, pid: process.pid }, '[startup] Uncaught exception — exiting');
-    process.exit(1);
+    setTimeout(() => process.exit(1), 100);
   });
 }
 
@@ -375,7 +376,11 @@ async function verifyDependencies() {
       logger.warn('[startup] Redis: Not initialized (optional)');
     }
   } catch (err) {
-    logger.warn({ err: err.message }, '[startup] Redis: FAILED (non-fatal)');
+    logger.error({ err: err.message }, '[startup] Redis: FAILED');
+    if (env.IS_PROD) {
+      throw new Error(`Redis unreachable: ${err.message}`);
+    }
+    logger.warn('[startup] Redis failure tolerated in non-production mode');
   }
 
   // Check dedicated rate-limit Redis
@@ -393,7 +398,10 @@ async function verifyDependencies() {
     logger.info('[startup] Rate-limit Redis: OK');
   } catch (err) {
     logger.error({ err: err.message }, '[startup] Rate-limit Redis: FAILED');
-    throw new Error(`Rate-limit Redis unreachable: ${err.message}`);
+    if (env.IS_PROD) {
+      throw new Error(`Rate-limit Redis unreachable: ${err.message}`);
+    }
+    logger.warn('[startup] Rate-limit Redis failure tolerated in non-production mode');
   }
 }
 
@@ -414,6 +422,8 @@ async function start() {
 
     // Create HTTP server
     server = http.createServer(app);
+    server.setTimeout(env.HTTP_REQUEST_TIMEOUT_MS);
+    server.headersTimeout = env.HTTP_HEADERS_TIMEOUT_MS;
 
     // Track connections for graceful shutdown
     trackConnections();
@@ -428,6 +438,18 @@ async function start() {
           { port: env.PORT, pid: process.pid, env: env.NODE_ENV },
           '[startup] HTTP server listening'
         );
+
+        if (env.IS_PROD) {
+          try {
+            const productionHealth = require('./services/productionHealth');
+            if (productionHealth && typeof productionHealth.startCron === 'function') {
+              productionHealth.startCron();
+            }
+          } catch (err) {
+            logger.warn({ err: err.message }, '[startup] Production health cron failed to start');
+          }
+        }
+
         resolve();
       });
 
