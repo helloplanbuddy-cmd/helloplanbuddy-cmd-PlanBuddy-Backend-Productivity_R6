@@ -162,8 +162,17 @@ async function handleRazorpayWebhook(req, res) {
   }
 
   const signature = getHeader(req, 'x-razorpay-signature');
+  const timestamp = getHeader(req, 'x-razorpay-timestamp');
 
-  // Step 2: Verify signature — fail fast, before any parse or DB work.
+  // Step 2: Verify timestamp freshness — fail fast before any parse or DB work.
+  try {
+    webhookAuthenticityService.verifyIngressTimestamp(timestamp, { requestId });
+  } catch (err) {
+    logger.warn({ requestId, code: err.code }, '[ingest] Timestamp verification failed');
+    return res.status(err.status || 401).json({ success: false, error: err.code });
+  }
+
+  // Step 3: Verify signature — fail fast, before any parse or DB work.
   try {
     verifySignature(rawBody, signature);
   } catch (err) {

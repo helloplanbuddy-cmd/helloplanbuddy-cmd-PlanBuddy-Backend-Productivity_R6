@@ -158,6 +158,11 @@ async function releaseLock(redis, lockKey) {
 async function runIdempotency(req, res, next, rawKey) {
   // Build scoped key: ties the idempotency key to user + endpoint so the same
   // raw key cannot replay a response across users or across different routes.
+  // ── SECURITY GUARD [f-006] ─────────────────────────────────────────────────
+  // userId is extracted EXCLUSIVELY from req.user.id (set by JWT auth middleware).
+  // NEVER extract userId from req.headers, req.query, req.body, or any other
+  // client-controlled source. This prevents userId spoofing attacks.
+  // ────────────────────────────────────────────────────────────────────────────
   const userId    = req.user?.id || 'anon';
   const endpoint  = `${req.method}:${req.path}`;
   const scopedKey = `${userId}:${endpoint}:${rawKey}`;

@@ -26,6 +26,12 @@ const keySecret = env.RAZORPAY_KEY_SECRET;
 // ─── Singleton SDK instance ───────────────────────────────────────────────────
 // Instantiated ONCE here. Every consumer imports this module; Node's module
 // cache guarantees a single Razorpay object for the entire process lifetime.
+//
+// SECURITY [f-017]: TLS certificate validation is ENABLED by default.
+//   • Node.js 17+ validates certificates by default (rejectUnauthorized: true).
+//   • NO custom HTTP agent is passed — the SDK uses Node's built-in HTTPS.
+//   • NEVER pass rejectUnauthorized: false or a custom agent with disabled TLS.
+//   • If you need to configure proxies, use an agent that preserves cert validation.
 const razorpayClient = new Razorpay({
   key_id:     keyId,
   key_secret: keySecret,
