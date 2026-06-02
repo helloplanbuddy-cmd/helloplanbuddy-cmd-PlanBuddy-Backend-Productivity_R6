@@ -187,9 +187,10 @@ exports.cancelBooking = async (req, res, next) => {
       const RefundService = require('../services/refundService');
       try {
         await RefundService.initiateRefund(
-          bookingId,
-          reason || 'Cancelled by user',
-          req.user.id
+          bookingId,                              // bookingId
+          null,                                   // amount (null = full refund)
+          reason || 'Cancelled by user',          // reason
+          req.user.id                             // requestedBy
         );
         const updated = await db.query(
           `SELECT b.*, t.title AS trip_title FROM bookings b

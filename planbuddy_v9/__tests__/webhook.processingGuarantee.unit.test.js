@@ -49,7 +49,10 @@ describe('ISSUE 1: Webhook → Queue → Worker → Financial Apply Guarantee (p
       .digest('hex');
 
     const req = {
-      headers: { 'x-razorpay-signature': signatureHex },
+      headers: {
+        'x-razorpay-signature': signatureHex,
+        'x-razorpay-timestamp': String(Math.floor(Date.now() / 1000)),
+      },
       requestId: 'corr_1',
       body: Buffer.from(rawPayload, 'utf8'),
       user: { id: 123 },

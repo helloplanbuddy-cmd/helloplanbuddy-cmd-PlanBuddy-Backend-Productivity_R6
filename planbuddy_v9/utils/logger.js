@@ -31,6 +31,12 @@ const baseLogger = pino({
   } : undefined,
 });
 
+// Ensure debug() exists even when pino is configured at higher levels.
+// Some tests/consumers expect logger.debug to be a function.
+if (typeof baseLogger.debug !== 'function') {
+  baseLogger.debug = baseLogger.info.bind(baseLogger);
+}
+
 function setBindings(fields) {
   const current = getBindings();
   requestContext.enterWith({ ...current, ...fields });

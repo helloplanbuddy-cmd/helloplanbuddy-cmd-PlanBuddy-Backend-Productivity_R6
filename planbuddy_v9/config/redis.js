@@ -203,8 +203,16 @@ function createClient(url, name, { isQueue = false } = {}) {
 
 // ─── Singleton instances ──────────────────────────────────────────────────────
 
-const redis      = createClient(env.REDIS_URL,       'cache',  { isQueue: false });
-const redisQueue = createClient(env.REDIS_QUEUE_URL, 'queue',  { isQueue: true });
+let redis, redisQueue;
+
+if (env.NODE_ENV === 'test') {
+  const { mockRedis, mockRedisQueue } = require('../__mocks__/redis');
+  redis = mockRedis;
+  redisQueue = mockRedisQueue;
+} else {
+  redis      = createClient(env.REDIS_URL,       'cache',  { isQueue: false });
+  redisQueue = createClient(env.REDIS_QUEUE_URL, 'queue',  { isQueue: true });
+}
 
 // ─── Health probe — returns DEGRADED status, not boolean ──────────────────────
 

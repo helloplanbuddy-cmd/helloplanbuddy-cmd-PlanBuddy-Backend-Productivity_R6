@@ -59,6 +59,7 @@ const rateLimit      = require('express-rate-limit');
 const { ipKeyGenerator } = require('express-rate-limit');
 const logger         = require('../utils/logger');
 const monitoring     = require('../utils/monitoring');
+const env            = require('../config/env');
 
 // ─── Dedicated Redis client for rate limiting (FIX-4) ────────────────────────
 // Separate from the main app Redis (BullMQ, sessions) so rate-limit ops
@@ -385,12 +386,13 @@ const verifyPaymentLimiter = makeLimiter({
   windowMs:     60 * 1000,
   max:          10,
   keyGenerator: userKey,
-  failClosed:   true,
+  failClosed:   env.IS_PROD,
 });
 
 /**
  * Webhook limiter — Razorpay webhook endpoint.
- * FAIL-CLOSED: Redis down → 503.
+ * FAIL-CLOSED in production; in development, Redis may be unavailable and
+ * the server should still be testable for webhook ingestion.
  * Key: IP (Razorpay delivery infrastructure, not authenticated users).
  * Threshold: 100/min per IP — accommodates burst delivery without blocking
  * legitimate retries from Razorpay's server pool.
@@ -403,7 +405,7 @@ const webhookLimiter = makeLimiter({
   windowMs:     60 * 1000,
   max:          100,
   keyGenerator: ipKey,
-  failClosed:   true,
+  failClosed:   env.IS_PROD,
 });
 
 /**

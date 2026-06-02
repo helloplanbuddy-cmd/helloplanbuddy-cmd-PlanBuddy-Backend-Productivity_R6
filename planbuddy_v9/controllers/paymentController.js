@@ -16,10 +16,10 @@
  */
 
 const RazorpayService = require('../services/razorpayService.js');
+const { rupeesToPaise } = require('../utils/money');
 
 const {
   razorpay: razorpayClient,
-  rupeesToPaise,
   keyId: razorpayKeyId,
 } = require('../config/razorpay.js');
 
@@ -126,7 +126,7 @@ exports.createOrder = async (req, res, next) => {
            (razorpay_order_id, booking_id, user_id, amount, currency)
          VALUES ($1, $2, $3, $4, $5)
          ON CONFLICT (razorpay_order_id) DO NOTHING`,
-        [order.id, bookingId, req.user.id, booking.total_amount, 'INR']
+        [order.id, bookingId, req.user.id, amountPaise, 'INR']
       );
 
       await client.query(
@@ -172,7 +172,7 @@ exports.createOrder = async (req, res, next) => {
       },
     });
   } catch (err) {
-    monitoring.payment_failures_total?.inc({ reason: 'order_creation_failed' });
+    monitoring.payment_failed_total?.inc({ reason: 'order_creation_failed' });
     next(err);
   }
 };
@@ -230,7 +230,7 @@ exports.verifyPayment = async (req, res, next) => {
       data: result.data,
     });
   } catch (err) {
-    monitoring.payment_failures_total?.inc({ reason: err.message?.slice(0, 50) || 'unknown' });
+    monitoring.payment_failed_total?.inc({ reason: err.message?.slice(0, 50) || 'unknown' });
     next(err);
   }
 };
@@ -249,7 +249,7 @@ exports.manualReconcile = async (req, res, next) => {
       requestId: req.requestId,
     });
 
-    const { runReconciliation } = require('../workers/paymentReconciliation.worker.js');
+    const { runReconciliation } = require('../services/paymentReconciliationService');
     const result = await runReconciliation();
 
     return res.json({

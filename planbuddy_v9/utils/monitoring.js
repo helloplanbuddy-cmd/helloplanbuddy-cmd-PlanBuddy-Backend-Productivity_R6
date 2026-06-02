@@ -23,3 +23,8 @@ module.exports = {
   request_duration_ms,
 };
 
+// Re-export metricsService metrics so middleware/controllers have a single import.
+// metricsService.js already registers its metrics on this register instance.
+const metricsService = require('../services/metricsService');
+Object.assign(module.exports, metricsService);
+

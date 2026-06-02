@@ -10,7 +10,7 @@
  * the same seat simultaneously → race condition → overbooking.
  *
  * Solution: Database unique constraint on (seat_id, trip_id, travel_date)
- * for active bookings (status IN ('confirmed', 'pending', 'paid')).
+ * for act      ive bookings (status IN ('confirmed', 'pending', 'paid')).
  *
  * Tests:
  *  1. Only one booking can be created per seat per trip date
@@ -26,14 +26,24 @@ describe('[M-2] Overbooking Prevention via Database Constraint', () => {
   let seatId;
   let user1Id;
   let user2Id;
+  let agencyId;
 
   beforeAll(async () => {
+    // Setup: create test agency
+    const agencyResult = await db.query(
+      `INSERT INTO users (email, password_hash, name, role)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id`,
+      ['agency@test.com', 'hash', 'Test Agency', 'agency']
+    );
+    agencyId = agencyResult.rows[0].id;
+
     // Setup: create test trip and seat
     const tripResult = await db.query(
-      `INSERT INTO trips (title, location, start_date)
-       VALUES ($1, $2, NOW() + INTERVAL '7 days')
+      `INSERT INTO trips (agency_id, title, description, location, price, max_group_size, start_date)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW() + INTERVAL '7 days')
        RETURNING id`,
-      ['Test Trip', 'Test Location']
+      [agencyId, 'Test Trip', 'Test Description', 'Test Location', 5000, 10]
     );
     tripId = tripResult.rows[0].id;
 
@@ -68,17 +78,17 @@ describe('[M-2] Overbooking Prevention via Database Constraint', () => {
     await db.query('DELETE FROM bookings WHERE trip_id = $1', [tripId]);
     await db.query('DELETE FROM seats WHERE trip_id = $1', [tripId]);
     await db.query('DELETE FROM trips WHERE id = $1', [tripId]);
-    await db.query('DELETE FROM users WHERE id IN ($1, $2)', [user1Id, user2Id]);
+    await db.query('DELETE FROM users WHERE id IN ($1, $2, $3)', [user1Id, user2Id, agencyId]);
   });
 
   describe('Test 1: Unique constraint on (seat_id, trip_id, travel_date)', () => {
     test('first booking for seat succeeds', async () => {
       const result = await db.transaction(async (client) => {
         return client.query(
-          `INSERT INTO bookings (user_id, trip_id, seat_id, travel_date, status, group_size, total_amount)
-           VALUES ($1, $2, $3, NOW()::DATE, $4, 1, 5000)
+          `INSERT INTO bookings (user_id, trip_id, seat_id, travel_date, status, group_size, total_amount, final_amount, agency_id)
+           VALUES ($1, $2, $3, NOW()::DATE, $4, 1, 5000, 5000, $5)
            RETURNING id`,
-          [user1Id, tripId, seatId, 'pending']
+          [user1Id, tripId, seatId, 'pending', agencyId]
         );
       });
 
@@ -91,10 +101,10 @@ describe('[M-2] Overbooking Prevention via Database Constraint', () => {
       try {
         await db.transaction(async (client) => {
           return client.query(
-            `INSERT INTO bookings (user_id, trip_id, seat_id, travel_date, status, group_size, total_amount)
-             VALUES ($1, $2, $3, NOW()::DATE, $4, 1, 5000)
+            `INSERT INTO bookings (user_id, trip_id, seat_id, travel_date, status, group_size, total_amount, final_amount, agency_id)
+             VALUES ($1, $2, $3, NOW()::DATE, $4, 1, 5000, 5000, $5)
              RETURNING id`,
-            [user2Id, tripId, seatId, 'pending']
+            [user2Id, tripId, seatId, 'pending', agencyId]
           );
         });
       } catch (err) {
@@ -121,10 +131,10 @@ describe('[M-2] Overbooking Prevention via Database Constraint', () => {
 
       // Now second user should be able to book the same seat
       const result = await db.query(
-        `INSERT INTO bookings (user_id, trip_id, seat_id, travel_date, status, group_size, total_amount)
-         VALUES ($1, $2, $3, NOW()::DATE, $4, 1, 5000)
+        `INSERT INTO bookings (user_id, trip_id, seat_id, travel_date, status, group_size, total_amount, final_amount, agency_id)
+         VALUES ($1, $2, $3, NOW()::DATE, $4, 1, 5000, 5000, $5)
          RETURNING id`,
-        [user2Id, tripId, seatId, 'pending']
+        [user2Id, tripId, seatId, 'pending', agencyId]
       );
 
       expect(result.rows.length).toBe(1);
@@ -145,19 +155,19 @@ describe('[M-2] Overbooking Prevention via Database Constraint', () => {
       // Simulate two concurrent booking attempts
       const promise1 = db.transaction(async (client) => {
         return client.query(
-          `INSERT INTO bookings (user_id, trip_id, seat_id, travel_date, status, group_size, total_amount)
-           VALUES ($1, $2, $3, NOW()::DATE, $4, 1, 5000)
+          `INSERT INTO bookings (user_id, trip_id, seat_id, travel_date, status, group_size, total_amount, final_amount, agency_id)
+           VALUES ($1, $2, $3, NOW()::DATE, $4, 1, 5000, 5000, $5)
            RETURNING id`,
-          [user1Id, tripId, newSeatId, 'pending']
+          [user1Id, tripId, newSeatId, 'pending', agencyId]
         );
       }).catch(err => ({ error: err }));
 
       const promise2 = db.transaction(async (client) => {
         return client.query(
-          `INSERT INTO bookings (user_id, trip_id, seat_id, travel_date, status, group_size, total_amount)
-           VALUES ($1, $2, $3, NOW()::DATE, $4, 1, 5000)
+          `INSERT INTO bookings (user_id, trip_id, seat_id, travel_date, status, group_size, total_amount, final_amount, agency_id)
+           VALUES ($1, $2, $3, NOW()::DATE, $4, 1, 5000, 5000, $5)
            RETURNING id`,
-          [user2Id, tripId, newSeatId, 'pending']
+          [user2Id, tripId, newSeatId, 'pending', agencyId]
         );
       }).catch(err => ({ error: err }));
 

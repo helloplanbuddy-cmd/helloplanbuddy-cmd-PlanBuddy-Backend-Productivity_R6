@@ -145,10 +145,10 @@ COMMIT;
 
 -- [FIX-BUG-3] CONCURRENTLY indexes must live outside BEGIN/COMMIT.
 -- These are safe to re-run — IF NOT EXISTS guards them.
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_booking_requests_key
+CREATE INDEX IF NOT EXISTS idx_booking_requests_key
   ON booking_requests(idempotency_key);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_booking_requests_booking
+CREATE INDEX IF NOT EXISTS idx_booking_requests_booking
   ON booking_requests(booking_id);
 
 -- ══════════════════════════════════════════════════════════════════════════════

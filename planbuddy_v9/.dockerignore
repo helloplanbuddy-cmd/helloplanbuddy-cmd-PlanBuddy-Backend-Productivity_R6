@@ -1,0 +1,44 @@
+# ──────────────────────────────────────────────────────────────
+# PlanBuddy Backend — Docker Build Exclusions
+# Prevents secrets, tests, and attack tools from shipping to production.
+# ──────────────────────────────────────────────────────────────
+
+# Secrets & Environment
+.env
+.env.*
+!.env.example
+
+# Chaos / Attack Tools
+chaos/
+
+# Tests
+tests/
+__tests__/
+*.test.js
+*.spec.js
+jest.config.js
+
+# Debug / Temporary Scripts
+tmp_*.js
+tmp_*.txt
+verify-server.js
+VERIFY-BACKEND.JS
+SETUP.JS
+quick-repair.js
+minimal-server.js
+
+# Logs
+logs/
+*.log
+
+# Node Modules (should be rebuilt in container)
+node_modules/
+
+# Documentation (not needed in image)
+*.md
+!README.md
+
+# CI / Build artifacts
+.git/
+.gitignore
+.github/

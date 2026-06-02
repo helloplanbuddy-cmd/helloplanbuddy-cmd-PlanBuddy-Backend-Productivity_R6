@@ -68,6 +68,13 @@ async function applyMigration(filename) {
     // Apply migration
     await db.query(sql);
     
+    // Ensure the migration is recorded in schema_migrations even if the SQL file
+    // itself doesn't contain an explicit tracking INSERT.
+    await db.query(
+      'INSERT INTO schema_migrations (version, filename, run_at) VALUES ($1, $2, NOW()) ON CONFLICT (version) DO NOTHING',
+      [version, filename]
+    );
+    
     logger.info(`[MIGRATION] ✅ ${filename} applied successfully`);
     return { success: true, version, filename };
   } catch (err) {

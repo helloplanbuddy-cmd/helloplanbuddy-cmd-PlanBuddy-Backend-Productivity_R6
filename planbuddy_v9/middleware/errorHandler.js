@@ -152,7 +152,7 @@ const errorHandler = (err, req, res, next) => {
 
   // ── Prometheus: payment failures counter ─────────────────────────────────
   if (status >= 500 && req.path.includes('/payment')) {
-    monitoring.payment_failures_total.inc({ reason: code || 'unknown' });
+    monitoring.payment_failed_total.inc({ reason: code || 'unknown' });
   }
 
   // ── HTTP response ────────────────────────────────────────────────────────

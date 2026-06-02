@@ -139,6 +139,19 @@ exports.login = async (req, res, next) => {
       await db.query('UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = $1', [user.id]);
     }
 
+    // SECURITY FIX: Migrate legacy stub hashes to real cryptographic hashes on login.
+    // This ensures gradual migration without forcing mass password resets.
+    if (bcrypt.needsRehash && bcrypt.needsRehash(user.password_hash, BCRYPT_ROUNDS)) {
+      try {
+        const newHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+        await db.query('UPDATE users SET password_hash = $1 WHERE id = $2', [newHash, user.id]);
+        logger.warn({ userId: user.id }, '[SECURITY] Migrated legacy password hash to real cryptographic hash on login');
+      } catch (rehashErr) {
+        // Non-fatal: login succeeds even if rehash fails; will retry on next login.
+        logger.error({ userId: user.id, err: rehashErr.message }, '[SECURITY] Password rehash migration failed');
+      }
+    }
+
     const { token } = generateToken({ id: user.id, role: user.role });
     const refresh = await RefreshTokenService.createRefreshToken(user.id, redis, {
       ip: req.ip,

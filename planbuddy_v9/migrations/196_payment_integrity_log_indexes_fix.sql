@@ -34,8 +34,8 @@ BEGIN
 END;
 $$;
 
-INSERT INTO schema_migrations (version, executed_at)
-VALUES ('196', NOW())
+INSERT INTO schema_migrations (version, filename, run_at)
+VALUES ('196', '196_payment_integrity_log_indexes_fix.sql', NOW())
 ON CONFLICT (version) DO NOTHING;
 
 COMMIT;

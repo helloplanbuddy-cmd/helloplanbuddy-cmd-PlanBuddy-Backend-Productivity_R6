@@ -1,3 +1,5 @@
+
++
 'use strict';
 
 /**
@@ -6,7 +8,7 @@
  * Runs ONCE before all tests:
  *  1. Connect to test database
  *  2. Create database if missing (for dev/local testing)
- *  3. Run all migrations
+jm*  3. Run all migrations
  *  4. Prepare clean state for each test file
  *
  * Does NOT run for each test file.

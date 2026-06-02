@@ -120,7 +120,16 @@ validateClusterPoolSafety();
 class Database {
   constructor() {
     const wantsSsl = /[?&]sslmode=|[?&]ssl=/.test(env.DATABASE_URL);
-    
+
+    if (env.IS_PROD && !wantsSsl) {
+      console.error('');
+      console.error('[db] FATAL: Production DATABASE_URL must include SSL.');
+      console.error('  Add sslmode=require or ssl=true to your DATABASE_URL.');
+      console.error('  Example: postgres://user:pass@host:5432/dbname?sslmode=require');
+      console.error('');
+      process.exit(1);
+    }
+
     // SECURITY FIX: Always validate SSL certificates in production
     // rejectUnauthorized: false allows MITM attacks — never use in production
     // In production, all database URLs MUST include SSL.
@@ -152,7 +161,8 @@ class Database {
 
     this._pool.on('connect', () => {
       const logger = require('../utils/logger');
-      logger.debug('[db] New client connected to pool');
+      const debugFn = typeof logger.debug === 'function' ? logger.debug.bind(logger) : logger.info.bind(logger);
+      debugFn('[db] New client connected to pool');
     });
   }
 
@@ -197,15 +207,9 @@ class Database {
         }
       }
 
-      console.error('DB ENV:', {
-        host: process.env.DB_HOST,
-        port: process.env.DB_PORT,
-        database: process.env.DB_NAME,
-        user: process.env.DB_USER ? 'REDACTED' : undefined,
-        password: process.env.DB_PASSWORD ? 'REDACTED' : undefined,
-        ssl: process.env.DB_SSL,
-        nodeEnv: process.env.NODE_ENV,
-      });
+      // SECURITY FIX: Never log connection credentials or environment details.
+      // The error object itself contains sufficient diagnostic information.
+      console.error('[db] Connection failure — check DATABASE_URL and network connectivity');
       console.error('====================================================');
 
       throw err;

@@ -1,3 +1,21 @@
+Razorpay sandbox scripts
+
+Files:
+- `send_signed_webhook.js`: send a signed Razorpay-like webhook to a target URL.
+- `test_receiver.js`: simple local HTTP server that verifies signature and timestamp headers.
+
+Quick test:
+
+```bash
+# start receiver
+node scripts/razorpay_sandbox/test_receiver.js
+
+# in another terminal send a signed webhook
+node scripts/razorpay_sandbox/send_signed_webhook.js --url http://127.0.0.1:50368/
+```
+
+Environment:
+- `RAZORPAY_WEBHOOK_SECRET` or `RAZORPAY_TEST_SECRET` to override the default test secret.
 Razorpay Sandbox Harness
 
 Files:

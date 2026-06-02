@@ -18,6 +18,7 @@
 
 const Razorpay = require('razorpay');
 const env      = require('./env');
+const { rupeesToPaise, paiseToRupees } = require('../utils/money');
 
 // Keys are guaranteed to be set by config/env.js startup validation.
 const keyId     = env.RAZORPAY_KEY_ID;
@@ -46,20 +47,6 @@ const razorpayClient = new Razorpay({
  * @param {number} rupees
  * @returns {number} paise as a safe integer
  */
-function rupeesToPaise(rupees) {
-  return Math.round(Number(rupees) * 100);
-}
-
-/**
- * Convert paise (integer) back to rupees (2 decimal places).
- *
- * @param {number} paise
- * @returns {number}
- */
-function paiseToRupees(paise) {
-  return Number((paise / 100).toFixed(2));
-}
-
 // ─── Exports ──────────────────────────────────────────────────────────────────
 module.exports = {
   // Primary SDK reference — use either name; both point to the same instance.

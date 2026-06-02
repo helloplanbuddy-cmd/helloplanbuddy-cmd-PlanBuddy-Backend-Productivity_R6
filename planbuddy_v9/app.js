@@ -42,6 +42,9 @@ const { backpressureMiddleware } = require('./middleware/backpressure');
 const monitoring                 = require('./utils/monitoring');
 const logger                     = require('./utils/logger');
 const { traceIdMiddleware }      = require('./middleware/traceId');
+// Call validateMetrics from services/metricsService directly to avoid
+// circular require between utils/monitoring and services/metricsService.
+require('./services/metricsService').validateMetrics();
 const internalIpGuard            = require('./middleware/internalIpGuard');
 const internalRoutes             = require('./routes/internal');
 
